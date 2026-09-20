@@ -8,6 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 import { ingestUploads } from "../ingest/pipeline";
+import { fingerprint, markDuplicates } from "../ingest/parsers";
 import { runPolicyEngine } from "../policy/engine";
 import type { UploadedFile } from "../ingest/pipeline";
 
@@ -226,5 +227,105 @@ describe("a bill whose reader hands back its tax as a line item", () => {
 
     // And no line was invented from a tax or total row.
     expect(result.lines.some((l) => /gst|total/i.test(l.description))).toBe(false);
+  });
+});
+
+describe("the same bill arriving twice, by two different routes", () => {
+  /**
+   * From a real run: the employee uploaded the hotel's email and a photograph of
+   * the same invoice. Both were claimed, and the settlement carried the stay
+   * twice. The two sources agree on merchant, amount, date and invoice number
+   * and differ only in the clock time - which is exactly why policy 5.3
+   * reconciles on the first four and says nothing about the fifth.
+   */
+  const invoiceEmail: UploadedFile = {
+    name: "hotel.eml",
+    bytes: Buffer.from(
+      [
+        "From: Novotel Hyderabad <reservations@novotelhyd.in>",
+        "To: Imran Qureshi <imran.qureshi@nortexindustries.com>",
+        "Subject: Tax Invoice NHC/26-27/4412 - Imran Qureshi",
+        "Date: Thu, 08 Oct 2026 10:15:00 +0530",
+        "Content-Type: text/plain; charset=UTF-8",
+        "",
+        "Folio no NHC/26-27/4412",
+        "Check-in 05 Oct 2026 | Check-out 08 Oct 2026 | Nights 3",
+        "",
+        "Room Charge         15,000.00",
+        "Sub total           15,000.00",
+        "CGST 6%                900.00",
+        "SGST 6%                900.00",
+        "Invoice total       16,800.00",
+        "",
+        "Settled by: Guest, HDFC Credit Card ****9921",
+      ].join("\n"),
+      "utf8",
+    ),
+  };
+
+  it("claims the stay once", async () => {
+    const fromEmail = await ingestUploads([invoiceEmail], CLAIMANT);
+    expect(fromEmail[0].excluded).toBe(false);
+    expect(fromEmail[0].extracted.amount).toBe(16800);
+
+    // The photograph of the same invoice, read to the same four keys but with a
+    // checkout time on it.
+    const fromPhoto = {
+      ...fromEmail[0],
+      filename: "invoice-photo.png",
+      sentAt: new Date("2026-10-08T11:05:00+05:30"),
+      extracted: {
+        ...fromEmail[0].extracted,
+        occurredAt: "2026-10-08T11:05:00+05:30",
+        merchant: "NOVOTEL HYDERABAD",
+      },
+    };
+    fromPhoto.fingerprint = fingerprint({
+      merchant: fromPhoto.extracted.merchant,
+      amount: fromPhoto.extracted.amount,
+      occurredAt: fromPhoto.extracted.occurredAt,
+      billNo: fromPhoto.extracted.invoiceNo,
+    });
+
+    markDuplicates([...fromEmail, fromPhoto]);
+    expect(fromPhoto.excluded).toBe(true);
+    expect(fromPhoto.excludeReason).toMatch(/Duplicate/i);
+
+    const result = runPolicyEngine({
+      request: REQUEST,
+      documents: [...fromEmail, fromPhoto],
+      submittedAt: new Date(),
+    });
+    expect(result.lines.filter((l) => l.section === "LODGING")).toHaveLength(1);
+    expect(result.totals.grossEmployee).toBe(16800);
+  });
+
+  it("names the rider without dragging in the rest of the receipt", async () => {
+    const docs = await ingestUploads(
+      [
+        {
+          name: "someone-else.eml",
+          bytes: Buffer.from(
+            [
+              "From: Uber Receipts <noreply@uber.com>",
+              "To: Imran Qureshi <imran.qureshi@nortexindustries.com>",
+              "Subject: Your trip with Uber",
+              "Date: Tue, 06 Oct 2026 09:00:00 +0530",
+              "Content-Type: text/plain; charset=UTF-8",
+              "",
+              "Thanks for riding, Chaitanya",
+              "",
+              "Total  INR 890.00",
+              "Pickup   Gachibowli",
+            ].join("\n"),
+            "utf8",
+          ),
+        },
+      ],
+      CLAIMANT,
+    );
+
+    expect(docs[0].extracted.riderName?.trim()).toBe("Chaitanya");
+    expect(docs[0].excludeReason).toContain("in the name of Chaitanya,");
   });
 });

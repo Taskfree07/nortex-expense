@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { confirmDocument } from "@/app/actions";
+import { confirmDocument, dropDocument } from "@/app/actions";
 import { buttonStyles } from "@/components/ui";
 
 /**
@@ -15,7 +15,7 @@ export function PriceDocumentForm({ documentId, filename }: { documentId: string
 
   return (
     <form
-      className="mt-3 grid gap-3 sm:grid-cols-[1fr_10rem_8rem_auto]"
+      className="mt-3 grid gap-2"
       action={async (formData) => {
         setBusy(true);
         setError(null);
@@ -54,16 +54,36 @@ export function PriceDocumentForm({ documentId, filename }: { documentId: string
         Amount
         <input type="number" name="amount" min={0} step="0.01" className={field} required />
       </label>
-      <label className="text-xs text-ink-soft sm:col-span-3">
+      <label className="text-xs text-ink-soft">
         Date on the bill
         <input type="date" name="lineDate" className={field} />
       </label>
-      <div className="flex items-end">
+      <div className="flex items-end gap-2">
         <button type="submit" disabled={busy} className={buttonStyles.primary}>
           {busy ? "Saving…" : "Add it to the claim"}
         </button>
+        <button
+          type="button"
+          disabled={busy}
+          className={buttonStyles.quiet}
+          onClick={async () => {
+            setBusy(true);
+            setError(null);
+            try {
+              const remove = new FormData();
+              remove.set("documentId", documentId);
+              await dropDocument(remove);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "That did not go through.");
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Not mine — remove it
+        </button>
       </div>
-      {error ? <p className="text-sm text-rust sm:col-span-4">{error}</p> : null}
+      {error ? <p className="text-sm text-rust">{error}</p> : null}
     </form>
   );
 }

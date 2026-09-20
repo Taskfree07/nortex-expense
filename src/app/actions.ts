@@ -25,6 +25,8 @@ import {
   setLineStatus,
   submitClaim,
   confirmUnreadableDocument,
+  removeDocument,
+  recheckClaim,
   type Decision,
 } from "@/lib/services/claim-service";
 
@@ -351,6 +353,22 @@ export async function confirmDocument(formData: FormData) {
     { amount, head, description, lineDate: lineDate || undefined },
     actor.empCode,
   );
+  revalidatePath(`/claims/${claimId}`);
+}
+
+/** Takes a piece of evidence off the trip and redrafts without it. */
+export async function dropDocument(formData: FormData) {
+  const actor = await requireActor();
+  const documentId = String(formData.get("documentId") ?? "");
+  const claimId = await removeDocument(documentId, actor.empCode);
+  revalidatePath(`/claims/${claimId}`);
+}
+
+/** Re-runs the policy engine over the evidence already on the trip. */
+export async function recheck(formData: FormData) {
+  const actor = await requireActor();
+  const claimId = String(formData.get("claimId") ?? "");
+  await recheckClaim(claimId, actor.empCode);
   revalidatePath(`/claims/${claimId}`);
 }
 

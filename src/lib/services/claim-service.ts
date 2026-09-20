@@ -7,6 +7,7 @@
 
 import { db } from "../db";
 import { ingestPack, ingestUploads, type Claimant, type UploadedFile } from "../ingest/pipeline";
+import { markDuplicates } from "../ingest/parsers";
 import type { ParsedDocument } from "../ingest/types";
 import { runPolicyEngine, type EngineResult, type ProposedLine } from "../policy/engine";
 import { resolveApprovalChain, type Person } from "../policy/approvals";
@@ -188,6 +189,22 @@ async function redraft(trqId: string, actorCode: string, action: string) {
   const rows = await db.document.findMany({ where: { travelRequestId: request.id } });
   const parsed = rows.map(toParsed);
 
+  // Duplicate detection is derived, not a decision taken once at upload: the
+  // same bill can arrive as an email today and a photograph tomorrow. Re-running
+  // it over everything on the trip means a claim repairs itself on the next
+  // redraft instead of carrying a double charge forever.
+  markDuplicates(parsed);
+  for (const [index, doc] of parsed.entries()) {
+    const row = rows[index];
+    if (doc.excluded === row.excluded) continue;
+    await db.document.update({
+      where: { id: row.id },
+      data: { excluded: doc.excluded, excludeReason: doc.excludeReason ?? null },
+    });
+    row.excluded = doc.excluded;
+    row.excludeReason = doc.excludeReason ?? null;
+  }
+
   const approvedRoles = request.approvals.filter((a) => a.decision === "APPROVED").map((a) => a.role);
   const estimates: { borneBy: string; estimate: number }[] = JSON.parse(request.estimateJson);
   const employeeBorne = round2(
@@ -304,7 +321,7 @@ async function redraft(trqId: string, actorCode: string, action: string) {
         severity: "BLOCK",
         message: `"${row.filename}" could not be read. Say what it was and what it cost, or remove it.`,
         policyRef: "5.2",
-        detail: row.subject,
+        detail: row.id,
       },
     });
   }
@@ -717,7 +734,7 @@ export async function confirmUnreadableDocument(
   });
 
   await db.flag.updateMany({
-    where: { claimId: claim.id, code: "DOCUMENT_NEEDS_REVIEW", detail: doc.subject, resolved: false },
+    where: { claimId: claim.id, code: "DOCUMENT_NEEDS_REVIEW", detail: doc.id, resolved: false },
     data: { resolved: true, resolutionNote: `Priced by hand: ${input.description}` },
   });
 
@@ -747,3 +764,60 @@ const CLASSIFICATION_BY_HEAD: Record<string, string> = {
   Meals: "MEAL_BILL",
   "Business entertainment": "ENTERTAINMENT_BILL",
 };
+
+/**
+ * Takes a piece of evidence off a trip: the wrong bill, someone else's, or one
+ * nothing could read and the employee cannot place. The claim is redrafted
+ * without it. The audit trail keeps the fact that it was here and who removed it.
+ */
+export async function removeDocument(documentId: string, actorCode: string) {
+  const doc = await db.document.findUniqueOrThrow({
+    where: { id: documentId },
+    include: { travelRequest: true },
+  });
+  if (!doc.travelRequest) throw new Error("That document is not attached to a trip.");
+  if (doc.travelRequest.employeeCode !== actorCode) {
+    throw new Error("Only the person who made the trip can remove its evidence.");
+  }
+
+  const claim = await db.claim.findFirst({
+    where: { travelRequestId: doc.travelRequestId ?? "", status: { in: ["DRAFT", "RETURNED"] } },
+  });
+  if (!claim) throw new Error("There is no open settlement on this trip.");
+
+  // Its lines go with it: a claim line with no proof behind it cannot be paid.
+  await db.claimLine.deleteMany({ where: { claimId: claim.id, documentId: doc.id } });
+  await db.flag.deleteMany({ where: { claimId: claim.id, code: "DOCUMENT_NEEDS_REVIEW", detail: doc.id } });
+  await db.document.delete({ where: { id: doc.id } });
+
+  await audit("CLAIM", claim.id, actorCode, "EVIDENCE_REMOVED", {
+    document: doc.filename,
+    classification: doc.classification,
+  });
+
+  await redraft(doc.travelRequest.trqId, actorCode, "REDRAFTED");
+  return claim.id;
+}
+
+/**
+ * Runs the evidence back through the policy engine without adding anything.
+ *
+ * Needed because the verdicts are derived: when a rule is corrected, or the same
+ * bill turns out to have arrived twice, a claim sitting in draft should be able
+ * to pick that up without the employee re-uploading their trip.
+ */
+export async function recheckClaim(claimId: string, actorCode: string) {
+  const claim = await db.claim.findUniqueOrThrow({
+    where: { id: claimId },
+    include: { travelRequest: true },
+  });
+  if (claim.employeeCode !== actorCode) {
+    throw new Error("Only the person who made the trip can re-run its checks.");
+  }
+  if (!["DRAFT", "RETURNED"].includes(claim.status)) {
+    throw new Error("This settlement has been filed, so its checks are fixed as they were.");
+  }
+
+  await redraft(claim.travelRequest.trqId, actorCode, "RECHECKED");
+  return claim.id;
+}

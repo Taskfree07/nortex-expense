@@ -1,0 +1,11 @@
+import { chromium } from "playwright";
+const base = process.env.BASE;
+const browser = await chromium.launch();
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 1500 } });
+await ctx.addCookies([{ name: "nortex_actor", value: "NX-4471", url: base }]);
+const page = await ctx.newPage();
+await page.goto(process.env.CLAIM, { waitUntil: "networkidle" });
+const panel = page.locator("aside").last();
+await panel.screenshot({ path: "D:/Temp/claude/D--New-Assignment-expense-reimbursement-takehome/d0fb6bba-0c0c-4b8f-a87f-125892980657/scratchpad/shots/panel-new.png" });
+console.log(await panel.innerText());
+await browser.close();

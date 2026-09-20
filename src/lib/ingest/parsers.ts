@@ -30,10 +30,14 @@ export function fingerprint(parts: {
 }): string | null {
   if (!parts.merchant || parts.amount === undefined) return null;
   const when = parts.occurredAt ? new Date(parts.occurredAt) : null;
+  // Policy 5.3 reconciles on bill number, date, amount and merchant - and not on
+  // the time. That matters: the same hotel bill arriving once as an email and
+  // once as a photograph gives two different clock times for one charge, and
+  // keying on time let both onto the claim.
   const key = [
     parts.merchant.toLowerCase().trim(),
     parts.amount.toFixed(2),
-    when ? `${ymd(when)}T${when.toISOString().slice(11, 16)}` : "",
+    when ? ymd(when) : "",
     (parts.billNo ?? "").toLowerCase(),
   ].join("|");
   return createHash("sha1").update(key).digest("hex").slice(0, 16);
@@ -54,7 +58,9 @@ const uberRule: Rule = {
     const when = body.match(/(\w{3},\s*\d{1,2}\s+\w{3}\s+\d{4})\s*\|\s*(\d{1,2}:\d{2}\s*[AP]M)/i);
     const occurredAt = when ? parseLooseDateTime(when[1], when[2]) : parseLooseDate(e.date);
 
-    const riderName = firstMatch(body, /Thanks for riding,\s*([A-Za-z][A-Za-z\s.]*)/i);
+    // Stay on the greeting's own line: \s would run the capture into the rest of
+    // the receipt and put "Chaitanya Total INR" in front of a person.
+    const riderName = firstMatch(body, /Thanks for riding,[ \t]*([A-Za-z][A-Za-z .'-]*)/i);
     const isForward = /-+\s*Forwarded message\s*-+/i.test(body);
 
     const extracted: Extraction = {

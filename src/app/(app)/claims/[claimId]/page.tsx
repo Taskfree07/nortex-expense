@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireActor } from "@/lib/session";
 import { db } from "@/lib/db";
 import { claimWithEverything } from "@/lib/services/claim-service";
-import { decide } from "@/app/actions";
+import { decide, recheck } from "@/app/actions";
 import { CLAIM_STATUS, CLASSIFICATION_LABEL, SEVERITY_TONE } from "@/lib/ui";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { formatINR } from "@/lib/money";
@@ -433,6 +433,18 @@ export default async function ClaimPage({ params }: PageProps<"/claims/[claimId]
               </p>
             </div>
 
+            {editable ? (
+              <form action={recheck} className="border-b border-rule px-5 py-3">
+                <input type="hidden" name="claimId" value={claim.id} />
+                <button type="submit" className="text-xs text-stamp hover:underline">
+                  Run the checks again
+                </button>
+                <p className="mt-0.5 text-xs text-ink-faint">
+                  Reads the evidence on this trip afresh. Use it after you fix something outside the app.
+                </p>
+              </form>
+            ) : null}
+
             <div className="space-y-5 px-5 py-4">
               {blocking.length + warnings.length === 0 ? (
                 <p className="text-sm text-moss">Everything checks out against the policy.</p>
@@ -449,6 +461,14 @@ export default async function ClaimPage({ params }: PageProps<"/claims/[claimId]
                   <div className="mt-3 space-y-4">
                     {blocking.map((flag) => {
                       const how = resolutionFor(flag.code, flag.severity);
+                      // A check about one document carries its id, so the control
+                      // that clears it sits on the check rather than somewhere
+                      // else on the page for the employee to go and find.
+                      const subject =
+                        flag.code === "DOCUMENT_NEEDS_REVIEW"
+                          ? documents.find((d) => d.id === flag.detail)
+                          : undefined;
+
                       return (
                         <MarginNote
                           key={flag.id}
@@ -457,7 +477,12 @@ export default async function ClaimPage({ params }: PageProps<"/claims/[claimId]
                           clause={flag.policyRef}
                         >
                           <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">{how.instruction}</p>
-                          {editable && how.by === "NOTE" ? <ResolveFlagForm flagId={flag.id} /> : null}
+                          {editable && subject ? (
+                            <PriceDocumentForm documentId={subject.id} filename={subject.filename} />
+                          ) : null}
+                          {editable && !subject && how.by === "NOTE" ? (
+                            <ResolveFlagForm flagId={flag.id} />
+                          ) : null}
                         </MarginNote>
                       );
                     })}
