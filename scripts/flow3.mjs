@@ -1,7 +1,7 @@
 /** A filed claim is sent back with remarks, corrected, and filed again against
  *  the same Travel Request ID (policy 2.3). */
 import { chromium } from "playwright";
-const base = "http://localhost:3111";
+const base = process.env.BASE || "http://localhost:3111";
 const browser = await chromium.launch();
 const as = async (code) => {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1100 } });

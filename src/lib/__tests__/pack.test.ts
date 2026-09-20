@@ -30,14 +30,28 @@ const REQUEST = {
   approvedByRoles: ["Reporting Manager"], // only Suresh replied "Approved"
 };
 
-async function run() {
-  const documents = await ingestPack(CLAIMANT, PACK);
-  const result = runPolicyEngine({
-    request: REQUEST,
-    documents,
-    submittedAt: new Date("2026-06-22T10:00:00+05:30"),
-  });
-  return { documents, result };
+/**
+ * The inbox is read once for the whole suite. With GEMINI_API_KEY set the two
+ * bills go to the model, which takes seconds; every test then asserts against
+ * that same run, so the suite proves the live reading and the stored one land in
+ * the same place.
+ */
+let once: Promise<{
+  documents: Awaited<ReturnType<typeof ingestPack>>;
+  result: ReturnType<typeof runPolicyEngine>;
+}> | null = null;
+
+function run() {
+  once ??= (async () => {
+    const documents = await ingestPack(CLAIMANT, PACK);
+    const result = runPolicyEngine({
+      request: REQUEST,
+      documents,
+      submittedAt: new Date("2026-06-22T10:00:00+05:30"),
+    });
+    return { documents, result };
+  })();
+  return once;
 }
 
 describe("reading the inbox", () => {

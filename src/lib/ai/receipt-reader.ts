@@ -119,28 +119,41 @@ export async function readReceiptImage(imagePath: string): Promise<ReceiptReadin
     const mime = imagePath.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
     const model = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { inline_data: { mime_type: mime, data: bytes.toString("base64") } },
-                { text: PROMPT },
-              ],
-            },
-          ],
-          generationConfig: { temperature: 0, responseMimeType: "application/json" },
-        }),
-        signal: AbortSignal.timeout(45000),
-      },
-    );
+    const body = JSON.stringify({
+      contents: [
+        {
+          parts: [{ inline_data: { mime_type: mime, data: bytes.toString("base64") } }, { text: PROMPT }],
+        },
+      ],
+      generationConfig: { temperature: 0, responseMimeType: "application/json" },
+    });
 
-    if (!response.ok)
-      throw new Error(`Gemini HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`);
+    // The free tier rate-limits by the minute, and a trip has several bills.
+    // Two backed-off retries turn that into a pause rather than a fallback;
+    // anything still failing after them drops through to the stored reading.
+    let response: Response | null = null;
+    let lastStatus = 0;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, attempt * 8000));
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-goog-api-key": key },
+          body,
+          signal: AbortSignal.timeout(45000),
+        },
+      );
+      if (response.ok) break;
+      lastStatus = response.status;
+      // 429 is the quota, 5xx is theirs; neither is worth giving up on at once.
+      if (lastStatus !== 429 && lastStatus < 500) break;
+    }
+
+    if (!response || !response.ok)
+      throw new Error(
+        `Gemini HTTP ${lastStatus || response?.status}: ${((await response?.text()) ?? "").slice(0, 200)}`,
+      );
 
     const payload = (await response.json()) as {
       candidates?: { content?: { parts?: { text?: string }[] } }[];
