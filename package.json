@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "db:studio": "prisma studio",
     "build:vercel": "node scripts/postgres-schema.mjs && prisma generate --schema=prisma/schema.postgres.prisma && prisma db push --schema=prisma/schema.postgres.prisma --skip-generate && tsx prisma/seed.ts && next build",
-    "demo": "node scripts/flow.mjs"
+    "demo": "node scripts/flow.mjs",
+    "seed:prod": "node scripts/postgres-schema.mjs && prisma generate --schema=prisma/schema.postgres.prisma && tsx prisma/seed.ts && prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

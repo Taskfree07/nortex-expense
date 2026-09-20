@@ -99,6 +99,23 @@ const VERIFIED: Record<string, Extraction> = {
   },
 };
 
+/**
+ * Google retires model names, and a name that works for one project returns 404
+ * for a newer one. So the reader is given a list rather than a name: it tries
+ * them in order and remembers the first that answers. GEMINI_MODEL pins a
+ * specific one when that matters.
+ */
+const MODEL_CANDIDATES = ["gemini-flash-latest", "gemini-3.6-flash", "gemini-2.5-flash"];
+
+let workingModel: string | null = null;
+
+function modelsToTry(): string[] {
+  const pinned = process.env.GEMINI_MODEL?.trim();
+  if (pinned) return [pinned];
+  if (workingModel) return [workingModel, ...MODEL_CANDIDATES.filter((m) => m !== workingModel)];
+  return MODEL_CANDIDATES;
+}
+
 export function verifiedReading(filename: string): Extraction | null {
   return VERIFIED[path.basename(filename)] ?? null;
 }
@@ -149,8 +166,6 @@ export async function readReceiptBytes(
   }
 
   try {
-    const model = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
-
     const body = JSON.stringify({
       contents: [
         {
@@ -160,33 +175,47 @@ export async function readReceiptBytes(
       generationConfig: { temperature: 0, responseMimeType: "application/json" },
     });
 
-    // The free tier rate-limits by the minute, and a trip has several bills.
-    // Two short backed-off retries turn that into a pause rather than a fallback.
-    // The backoff stays small on purpose: the whole import runs inside one
-    // serverless invocation, and a person is waiting at the other end of it.
     let response: Response | null = null;
     let lastStatus = 0;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      if (attempt > 0) await new Promise((r) => setTimeout(r, attempt * 3000));
-      response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json", "x-goog-api-key": key },
-          body,
-          signal: AbortSignal.timeout(45000),
-        },
-      );
-      if (response.ok) break;
-      lastStatus = response.status;
-      // 429 is the quota, 5xx is theirs; neither is worth giving up on at once.
-      if (lastStatus !== 429 && lastStatus < 500) break;
+    let lastBody = "";
+
+    for (const model of modelsToTry()) {
+      // The free tier rate-limits by the minute, and a trip has several bills.
+      // Two short backed-off retries turn that into a pause rather than a
+      // fallback. The backoff stays small on purpose: the whole import runs
+      // inside one serverless invocation with a person waiting on it.
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, attempt * 3000));
+        response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json", "x-goog-api-key": key },
+            body,
+            signal: AbortSignal.timeout(45000),
+          },
+        );
+        if (response.ok) break;
+        lastStatus = response.status;
+        lastBody = (await response.text()).slice(0, 200);
+        // 429 is the quota, 5xx is theirs; neither is worth giving up on at once.
+        if (lastStatus !== 429 && lastStatus < 500) break;
+      }
+
+      if (response?.ok) {
+        // Remember what worked: the rest of this trip's bills go straight there.
+        workingModel = model;
+        break;
+      }
+
+      // Worth asking a different model: 404 (retired for this project), 403 (not
+      // permitted), 429 (that model's quota) and 5xx (that model is busy). A 400
+      // or 401 is about the request or the key, so another name will not help.
+      const modelSpecific = [403, 404, 429].includes(lastStatus) || lastStatus >= 500;
+      if (!modelSpecific) break;
     }
 
-    if (!response || !response.ok)
-      throw new Error(
-        `Gemini HTTP ${lastStatus || response?.status}: ${((await response?.text()) ?? "").slice(0, 200)}`,
-      );
+    if (!response || !response.ok) throw new Error(`Gemini HTTP ${lastStatus}: ${lastBody}`);
 
     const payload = (await response.json()) as {
       candidates?: { content?: { parts?: { text?: string }[] } }[];
