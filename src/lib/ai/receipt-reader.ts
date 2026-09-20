@@ -107,6 +107,9 @@ const VERIFIED: Record<string, Extraction> = {
  */
 const MODEL_CANDIDATES = ["gemini-flash-latest", "gemini-3.6-flash", "gemini-2.5-flash"];
 
+/** How long one bill may spend with the model before it goes to the employee unread. */
+const READ_BUDGET_MS = Number(process.env.GEMINI_BUDGET_MS ?? 30000);
+
 let workingModel: string | null = null;
 
 function modelsToTry(): string[] {
@@ -179,27 +182,32 @@ export async function readReceiptBytes(
     let lastStatus = 0;
     let lastBody = "";
 
+    // The whole import runs inside one serverless invocation with a person
+    // waiting on it, so the time spent here is bounded. Past the deadline the
+    // bill goes to them unread rather than the request hanging.
+    const deadline = Date.now() + READ_BUDGET_MS;
+
     for (const model of modelsToTry()) {
-      // The free tier rate-limits by the minute, and a trip has several bills.
-      // Two short backed-off retries turn that into a pause rather than a
-      // fallback. The backoff stays small on purpose: the whole import runs
-      // inside one serverless invocation with a person waiting on it.
-      for (let attempt = 0; attempt < 3; attempt++) {
-        if (attempt > 0) await new Promise((r) => setTimeout(r, attempt * 3000));
+      if (Date.now() > deadline) break;
+
+      // Only a 5xx is worth asking the same model twice - it means Google was
+      // briefly busy. A quota is per model and does not clear in seconds, so a
+      // 429 moves straight on to the next name instead of sleeping on it.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
         response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
           {
             method: "POST",
             headers: { "content-type": "application/json", "x-goog-api-key": key },
             body,
-            signal: AbortSignal.timeout(45000),
+            signal: AbortSignal.timeout(Math.max(5000, deadline - Date.now())),
           },
         );
         if (response.ok) break;
         lastStatus = response.status;
         lastBody = (await response.text()).slice(0, 200);
-        // 429 is the quota, 5xx is theirs; neither is worth giving up on at once.
-        if (lastStatus !== 429 && lastStatus < 500) break;
+        if (lastStatus < 500) break;
       }
 
       if (response?.ok) {
@@ -209,8 +217,9 @@ export async function readReceiptBytes(
       }
 
       // Worth asking a different model: 404 (retired for this project), 403 (not
-      // permitted), 429 (that model's quota) and 5xx (that model is busy). A 400
-      // or 401 is about the request or the key, so another name will not help.
+      // permitted), 429 (that model's quota is spent - another may have its own)
+      // and 5xx (that model is busy). A 400 or 401 is about the request or the
+      // key, so another name will not help.
       const modelSpecific = [403, 404, 429].includes(lastStatus) || lastStatus >= 500;
       if (!modelSpecific) break;
     }

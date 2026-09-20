@@ -8,7 +8,7 @@ page.on("console", (m) => { if (m.type() === "error") console.log("  console err
 
 const t0 = Date.now();
 await page.goto(`${base}/requests/TRQ-2026-0001`, { waitUntil: "networkidle" });
-await page.getByRole("button", { name: /Read (my inbox|the inbox again)/i }).click();
+await page.getByRole("button", { name: /sample inbox/i }).click();
 await page.waitForURL(/\/claims\//, { timeout: 120000 });
 await page.waitForLoadState("networkidle");
 console.log("import took", ((Date.now() - t0) / 1000).toFixed(1), "s");

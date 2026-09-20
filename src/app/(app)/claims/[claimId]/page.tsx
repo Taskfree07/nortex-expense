@@ -7,6 +7,7 @@ import { decide } from "@/app/actions";
 import { CLAIM_STATUS, CLASSIFICATION_LABEL, SEVERITY_TONE } from "@/lib/ui";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { formatINR } from "@/lib/money";
+import { resolutionFor } from "@/lib/policy/guidance";
 import {
   ClauseTag,
   EmptyState,
@@ -423,26 +424,72 @@ export default async function ClaimPage({ params }: PageProps<"/claims/[claimId]
           <div className="border border-rule bg-card">
             <div className="border-b border-rule px-5 py-3">
               <h2 className="text-sm font-semibold text-ink">Policy checks</h2>
-              <p className="mt-0.5 text-xs text-ink-faint">
-                {blocking.length} blocking · {warnings.length} to look at · {notes.length} noted
+              <p className="mt-0.5 text-xs leading-relaxed text-ink-faint">
+                {blocking.length === 0
+                  ? "Nothing is waiting on you."
+                  : `${blocking.length} need${blocking.length === 1 ? "s" : ""} you. ${warnings.length} ${
+                      warnings.length === 1 ? "is" : "are"
+                    } noted for your approver.`}
               </p>
             </div>
 
-            <div className="space-y-4 px-5 py-4">
+            <div className="space-y-5 px-5 py-4">
               {blocking.length + warnings.length === 0 ? (
                 <p className="text-sm text-moss">Everything checks out against the policy.</p>
               ) : null}
 
-              {[...blocking, ...warnings].map((flag) => (
-                <MarginNote
-                  key={flag.id}
-                  severity={flag.severity}
-                  message={flag.message}
-                  clause={flag.policyRef}
-                >
-                  {editable ? <ResolveFlagForm flagId={flag.id} /> : null}
-                </MarginNote>
-              ))}
+              {blocking.length > 0 ? (
+                <div>
+                  <h3 className="text-xs font-medium text-ink">
+                    {editable ? "Yours to deal with before you can file" : "Open, with the claimant"}
+                  </h3>
+                  <p className="mt-0.5 text-xs text-ink-faint">
+                    {blocking.length} of the {blocking.length + warnings.length} checks below.
+                  </p>
+                  <div className="mt-3 space-y-4">
+                    {blocking.map((flag) => {
+                      const how = resolutionFor(flag.code, flag.severity);
+                      return (
+                        <MarginNote
+                          key={flag.id}
+                          severity={flag.severity}
+                          message={flag.message}
+                          clause={flag.policyRef}
+                        >
+                          <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">{how.instruction}</p>
+                          {editable && how.by === "NOTE" ? <ResolveFlagForm flagId={flag.id} /> : null}
+                        </MarginNote>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
+              {warnings.length > 0 ? (
+                <div>
+                  <h3 className="text-xs font-medium text-ink">
+                    Written down for your approver — nothing to fill in
+                  </h3>
+                  <p className="mt-0.5 text-xs text-ink-faint">
+                    These do not stop you filing. They travel with the claim so the decision is made knowing
+                    them.
+                  </p>
+                  <div className="mt-3 space-y-4">
+                    {warnings.map((flag) => (
+                      <MarginNote
+                        key={flag.id}
+                        severity={flag.severity}
+                        message={flag.message}
+                        clause={flag.policyRef}
+                      >
+                        <p className="mt-1.5 text-xs leading-relaxed text-ink-faint">
+                          {resolutionFor(flag.code, flag.severity).instruction}
+                        </p>
+                      </MarginNote>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               {notes.length > 0 ? (
                 <details className="text-sm">
