@@ -18,11 +18,17 @@ export async function ingestPack(claimant: Claimant, packDir = PACK_DIR): Promis
   const emailDir = path.join(packDir, "sample_emails");
   const files = (await readdir(emailDir)).filter((f) => f.endsWith(".eml")).sort();
 
-  const docs: ParsedDocument[] = [];
-  for (const file of files) {
-    const raw = parseEml(file, await readFile(path.join(emailDir, file), "utf8"));
-    docs.push(await ingestEmail(raw, claimant, packDir));
-  }
+  // The messages are independent, and the two with bills attached each wait on a
+  // model call. Reading them together keeps a trip's import inside the few
+  // seconds a person will sit through, rather than the sum of every call.
+  const docs = await Promise.all(
+    files.map(async (file) => {
+      const raw = parseEml(file, await readFile(path.join(emailDir, file), "utf8"));
+      return ingestEmail(raw, claimant, packDir);
+    }),
+  );
+
+  // Duplicate detection is order-sensitive, so it runs once they are all in.
   return markDuplicates(docs);
 }
 

@@ -129,12 +129,13 @@ export async function readReceiptImage(imagePath: string): Promise<ReceiptReadin
     });
 
     // The free tier rate-limits by the minute, and a trip has several bills.
-    // Two backed-off retries turn that into a pause rather than a fallback;
-    // anything still failing after them drops through to the stored reading.
+    // Two short backed-off retries turn that into a pause rather than a fallback.
+    // The backoff stays small on purpose: the whole import runs inside one
+    // serverless invocation, and a person is waiting at the other end of it.
     let response: Response | null = null;
     let lastStatus = 0;
     for (let attempt = 0; attempt < 3; attempt++) {
-      if (attempt > 0) await new Promise((r) => setTimeout(r, attempt * 8000));
+      if (attempt > 0) await new Promise((r) => setTimeout(r, attempt * 3000));
       response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
         {

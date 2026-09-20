@@ -5,6 +5,8 @@ inbox for a trip, applies the company's travel policy, drafts the settlement
 form, routes it through the approval chain the policy matrix demands, and tracks
 it to the payment run.
 
+**Live: https://nortex-expense.vercel.app** — sign in as Chaitanya Reddy and open TRQ-2026-0001.
+
 Built for the take-home in `../pack`. The pack is the specification.
 
 ## Run it
@@ -25,6 +27,10 @@ readings:
 # .env
 GEMINI_API_KEY="..."      # https://aistudio.google.com/apikey — free tier
 ```
+
+The free tier allows 20 requests a day per model, and one import of this trip
+costs two of them. Past that the reader falls back to the stored readings and
+says so on each document, which is why the tests pass either way.
 
 ## Walk through it
 

@@ -21,7 +21,7 @@ const shot = (page, name, full = false) => page.screenshot({ path: `${out}/${nam
 let { ctx, page } = await as("NX-4471");
 await page.goto(`${base}/requests/TRQ-2026-0001`, { waitUntil: "networkidle" });
 await shot(page, "flow-01-request", true);
-await page.getByRole("button", { name: /Read my inbox/i }).click();
+await page.getByRole("button", { name: /Read (my inbox|the inbox again)/i }).click();
 await page.waitForURL(/\/claims\//, { timeout: 60000 });
 await page.waitForLoadState("networkidle");
 const claimUrl = page.url();
@@ -44,7 +44,7 @@ await page
   );
 await page.getByRole("button", { name: /Record attendees/i }).click();
 await page.waitForLoadState("networkidle");
-await page.waitForTimeout(800);
+await page.waitForTimeout(3000);
 
 const clearInputs = page.getByPlaceholder("What was done about it");
 await clearInputs
@@ -54,11 +54,20 @@ await page
   .getByRole("button", { name: /Clear this check/i })
   .first()
   .click();
-await page.waitForTimeout(1200);
+await page.waitForTimeout(4000);
 await shot(page, "flow-03-checks-cleared", true);
 
-await page.getByRole("button", { name: /File the settlement/i }).click();
-await page.waitForTimeout(2500);
+const fileButton = page.getByRole("button", { name: /File the settlement/i });
+await fileButton.waitFor({ state: "visible" });
+await page.waitForFunction(
+  () => {
+    const b = [...document.querySelectorAll("button")].find((x) => /File the settlement/.test(x.textContent ?? ""));
+    return b && !b.disabled;
+  },
+  { timeout: 60000 },
+);
+await fileButton.click();
+await page.waitForTimeout(6000);
 await page.reload({ waitUntil: "networkidle" });
 await shot(page, "flow-04-filed", true);
 await ctx.close();
@@ -70,7 +79,7 @@ await shot(page, "flow-05-approver-queue", true);
 await page.goto(claimUrl, { waitUntil: "networkidle" });
 await page.getByRole("textbox").first().fill("Checked against the hotel limit I asked about. Approved.");
 await page.getByRole("button", { name: /^Approve$/ }).click();
-await page.waitForTimeout(2000);
+await page.waitForTimeout(5000);
 await ctx.close();
 
 // 3. Head of Department
@@ -78,7 +87,7 @@ await ctx.close();
 await page.goto(claimUrl, { waitUntil: "networkidle" });
 await page.getByRole("textbox").first().fill("Entertainment confirmed. Approved.");
 await page.getByRole("button", { name: /^Approve$/ }).click();
-await page.waitForTimeout(2000);
+await page.waitForTimeout(5000);
 await ctx.close();
 
 // 4. Finance verifies
@@ -86,7 +95,7 @@ await ctx.close();
 await page.goto(claimUrl, { waitUntil: "networkidle" });
 await page.getByRole("textbox").first().fill("Bills reconciled, no duplicates. Verified.");
 await page.getByRole("button", { name: /^Approve$/ }).click();
-await page.waitForTimeout(2000);
+await page.waitForTimeout(5000);
 await page.goto(`${base}/finance`, { waitUntil: "networkidle" });
 await shot(page, "flow-06-finance", true);
 await ctx.close();

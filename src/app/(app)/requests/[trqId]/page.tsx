@@ -12,6 +12,9 @@ import { DecisionForm } from "@/components/decision-form";
 
 export const dynamic = "force-dynamic";
 
+// Reading an inbox calls out to the model for each photographed bill.
+export const maxDuration = 60;
+
 export default async function RequestPage({ params }: PageProps<"/requests/[trqId]">) {
   const { trqId } = await params;
   const actor = await requireActor();
