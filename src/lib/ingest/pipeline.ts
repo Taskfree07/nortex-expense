@@ -13,7 +13,7 @@ import { readdir, readFile } from "fs/promises";
 import path from "path";
 import { parseEml } from "./eml";
 import { markDuplicates, parseEmail, fingerprint } from "./parsers";
-import { mimeFor, readReceiptBytes, readReceiptImage } from "../ai/receipt-reader";
+import { mimeFor, readReceiptBytes, readReceiptImage, verifiedReading } from "../ai/receipt-reader";
 import type { Classification, Extraction, ParsedDocument, RawEmail } from "./types";
 
 export type Claimant = { email: string; name: string };
@@ -77,7 +77,10 @@ async function ingestUpload(file: UploadedFile, claimant: Claimant): Promise<Par
 /** A photographed or PDF bill with no email around it. */
 async function billFromUpload(file: UploadedFile, claimant: Claimant): Promise<ParsedDocument> {
   const mime = mimeFor(file.name);
-  const reading = await readReceiptBytes(file.bytes, mime);
+  // The two bills that ship with the pack have readings taken from the images
+  // themselves. If one of them is uploaded by hand, it is the same bill, so the
+  // same fallback applies when the model cannot be reached.
+  const reading = await readReceiptBytes(file.bytes, mime, verifiedReading(file.name));
   const extracted = reading.extracted;
   const classification = classifyBill(extracted);
 
