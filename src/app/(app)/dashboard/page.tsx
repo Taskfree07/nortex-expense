@@ -23,7 +23,9 @@ export default async function DashboardPage() {
 
   const mine = claims.filter((c) => c.employeeCode === actor.empCode);
   const needsYou = mine.filter((c) => ["DRAFT", "RETURNED"].includes(c.status));
-  const inFlight = mine.filter((c) => ["UNDER_REVIEW", "VERIFIED", "QUEUED_FOR_PAYMENT"].includes(c.status));
+  const inFlight = mine.filter((c) =>
+    ["UNDER_REVIEW", "VERIFIED", "QUEUED_FOR_PAYMENT"].includes(c.status),
+  );
   const paidToMe = round2(mine.filter((c) => c.status === "PAID").reduce((s, c) => s + c.payable, 0));
 
   const advanceOutstanding = round2(
@@ -46,7 +48,11 @@ export default async function DashboardPage() {
       <PageHeader
         title={`Good to see you, ${actor.name.split(" ")[0]}`}
         lede={`${actor.designation} · cost centre ${actor.costCentre} · ${scopeLine(actor)}`}
-        actions={<LinkButton href="/requests/new" variant="primary">Raise a travel request</LinkButton>}
+        actions={
+          <LinkButton href="/requests/new" variant="primary">
+            Raise a travel request
+          </LinkButton>
+        }
       />
 
       <div className="grid gap-px border border-rule bg-rule sm:grid-cols-2 lg:grid-cols-4">
@@ -89,7 +95,11 @@ export default async function DashboardPage() {
       </div>
 
       {unsettledRequests.length > 0 ? (
-        <Panel className="mt-6" title="A trip is waiting to be settled" hint="Policy 5.1 gives you 7 calendar days from the date you got back.">
+        <Panel
+          className="mt-6"
+          title="A trip is waiting to be settled"
+          hint="Policy 5.1 gives you 7 calendar days from the date you got back."
+        >
           <ul className="divide-y divide-rule">
             {unsettledRequests.map((request) => (
               <li key={request.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
@@ -113,7 +123,10 @@ export default async function DashboardPage() {
 
       {actor.isFinance ? (
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          <Panel title="To verify" hint="Finance verification is required on every claim, whatever its value.">
+          <Panel
+            title="To verify"
+            hint="Finance verification is required on every claim, whatever its value."
+          >
             <ClaimList claims={toVerify} empty="Nothing to verify right now." />
           </Panel>
           <Panel title="Queued for payment" hint="Paid in the run on the 10th and the 25th.">
@@ -126,9 +139,17 @@ export default async function DashboardPage() {
         className="mt-6"
         title={actor.isFinance || actor.isAdmin ? "Everything in the organisation" : "Your claims"}
         hint="Newest first."
-        actions={<Link href="/claims" className="text-xs text-stamp hover:underline">See all</Link>}
+        actions={
+          <Link href="/claims" className="text-xs text-stamp hover:underline">
+            See all
+          </Link>
+        }
       >
-        <ClaimList claims={claims.slice(0, 6)} empty="No claims yet. Import a trip's inbox to make the first one." showOwner />
+        <ClaimList
+          claims={claims.slice(0, 6)}
+          empty="No claims yet. Import a trip's inbox to make the first one."
+          showOwner
+        />
       </Panel>
     </>
   );
@@ -161,7 +182,15 @@ type ClaimRow = {
   travelRequest: { destination: string; trqId: string };
 };
 
-function ClaimList({ claims, empty, showOwner }: { claims: ClaimRow[]; empty: string; showOwner?: boolean }) {
+function ClaimList({
+  claims,
+  empty,
+  showOwner,
+}: {
+  claims: ClaimRow[];
+  empty: string;
+  showOwner?: boolean;
+}) {
   if (claims.length === 0) {
     return (
       <div className="px-5 py-6">

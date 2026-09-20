@@ -112,7 +112,11 @@ function fillRequestSheet(workbook: ExcelJS.Workbook, claim: ExportClaim) {
   set(sheet, "C13", formatDate(request.fromDate));
   set(sheet, "F13", formatDate(request.toDate));
   set(sheet, "C14", request.days);
-  set(sheet, "F14", `${request.travelType === "INTERNATIONAL" ? "International" : "Domestic"} - ${request.cityClass.replace("_", " ")}`);
+  set(
+    sheet,
+    "F14",
+    `${request.travelType === "INTERNATIONAL" ? "International" : "Domestic"} - ${request.cityClass.replace("_", " ")}`,
+  );
   set(sheet, "C15", request.destination);
   set(sheet, "F15", "INR");
   set(sheet, "C16", request.purpose);
@@ -156,38 +160,53 @@ function fillSettlementSheet(workbook: ExcelJS.Workbook, claim: ExportClaim) {
   const live = claim.lines.filter((l) => l.status !== "REMOVED");
 
   // 1) Lodging
-  writeSection(sheet, LODGING_ROWS, live.filter((l) => l.section === "LODGING"), (row, line) => {
-    set(sheet, `B${row}`, line.checkIn ? formatDate(line.checkIn) : "");
-    set(sheet, `C${row}`, line.checkOut ? formatDate(line.checkOut) : "");
-    set(sheet, `D${row}`, line.nights ?? "");
-    set(sheet, `E${row}`, line.merchant ?? line.description);
-    set(sheet, `F${row}`, claim.travelRequest.destination.split("/")[0].trim());
-    set(sheet, `G${row}`, line.paidBy);
-    set(sheet, `H${row}`, line.gross);
-    set(sheet, `I${row}`, proofRef(line));
-  });
+  writeSection(
+    sheet,
+    LODGING_ROWS,
+    live.filter((l) => l.section === "LODGING"),
+    (row, line) => {
+      set(sheet, `B${row}`, line.checkIn ? formatDate(line.checkIn) : "");
+      set(sheet, `C${row}`, line.checkOut ? formatDate(line.checkOut) : "");
+      set(sheet, `D${row}`, line.nights ?? "");
+      set(sheet, `E${row}`, line.merchant ?? line.description);
+      set(sheet, `F${row}`, claim.travelRequest.destination.split("/")[0].trim());
+      set(sheet, `G${row}`, line.paidBy);
+      set(sheet, `H${row}`, line.gross);
+      set(sheet, `I${row}`, proofRef(line));
+    },
+  );
 
   // 2) Travel and transportation
-  writeSection(sheet, TRANSPORT_ROWS, live.filter((l) => l.section === "TRANSPORT"), (row, line) => {
-    set(sheet, `B${row}`, line.lineDate ? formatDate(line.lineDate) : "");
-    set(sheet, `C${row}`, line.lineDate ? timeOf(line.lineDate) : "");
-    set(sheet, `D${row}`, line.fromLoc ?? "");
-    set(sheet, `E${row}`, line.toLoc ?? "");
-    set(sheet, `F${row}`, line.mode ?? "");
-    set(sheet, `G${row}`, line.paidBy);
-    set(sheet, `H${row}`, line.gross);
-    set(sheet, `I${row}`, proofRef(line));
-  });
+  writeSection(
+    sheet,
+    TRANSPORT_ROWS,
+    live.filter((l) => l.section === "TRANSPORT"),
+    (row, line) => {
+      set(sheet, `B${row}`, line.lineDate ? formatDate(line.lineDate) : "");
+      set(sheet, `C${row}`, line.lineDate ? timeOf(line.lineDate) : "");
+      set(sheet, `D${row}`, line.fromLoc ?? "");
+      set(sheet, `E${row}`, line.toLoc ?? "");
+      set(sheet, `F${row}`, line.mode ?? "");
+      set(sheet, `G${row}`, line.paidBy);
+      set(sheet, `H${row}`, line.gross);
+      set(sheet, `I${row}`, proofRef(line));
+    },
+  );
 
   // 3) Other expenses
-  writeSection(sheet, OTHER_ROWS, live.filter((l) => l.section === "OTHER"), (row, line) => {
-    set(sheet, `B${row}`, line.lineDate ? formatDate(line.lineDate) : "");
-    set(sheet, `C${row}`, line.head);
-    set(sheet, `D${row}`, line.description);
-    set(sheet, `G${row}`, line.paidBy);
-    set(sheet, `H${row}`, line.gross);
-    set(sheet, `I${row}`, proofRef(line));
-  });
+  writeSection(
+    sheet,
+    OTHER_ROWS,
+    live.filter((l) => l.section === "OTHER"),
+    (row, line) => {
+      set(sheet, `B${row}`, line.lineDate ? formatDate(line.lineDate) : "");
+      set(sheet, `C${row}`, line.head);
+      set(sheet, `D${row}`, line.description);
+      set(sheet, `G${row}`, line.paidBy);
+      set(sheet, `H${row}`, line.gross);
+      set(sheet, `I${row}`, proofRef(line));
+    },
+  );
 
   // 4) Settlement summary - only the two cells the template expects us to type.
   set(sheet, "H46", claim.disallowed);
@@ -277,8 +296,12 @@ function timeOf(date: Date) {
 
 function decisionWord(decision: string) {
   return (
-    { PENDING: "Pending", APPROVED: "Approved", REJECTED: "Rejected", RETURNED: "Returned", SKIPPED: "Skipped" }[
-      decision
-    ] ?? decision
+    {
+      PENDING: "Pending",
+      APPROVED: "Approved",
+      REJECTED: "Rejected",
+      RETURNED: "Returned",
+      SKIPPED: "Skipped",
+    }[decision] ?? decision
   );
 }

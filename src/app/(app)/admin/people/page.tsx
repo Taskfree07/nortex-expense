@@ -46,68 +46,72 @@ export default async function PeoplePage() {
         title="Employee master"
         hint={`The last column resolves the chain for a claim of ${formatINR(SAMPLE_VALUE)} — the Bengaluru settlement in the pack.`}
       >
-        <table className="ledger">
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Name</th>
-              <th>Designation</th>
-              <th>Department</th>
-              <th>Reports to</th>
-              <th>Would be approved by</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((person) => {
-              const chain = resolveApprovalChain(
-                master.get(person.empCode)!,
-                master,
-                requiredApprovalRoles(SAMPLE_VALUE),
-                "",
-              ).filter((s) => !s.role.startsWith("Finance -"));
+        <div className="table-scroll">
+          <table className="ledger">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Designation</th>
+                <th>Department</th>
+                <th>Reports to</th>
+                <th>Would be approved by</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((person) => {
+                const chain = resolveApprovalChain(
+                  master.get(person.empCode)!,
+                  master,
+                  requiredApprovalRoles(SAMPLE_VALUE),
+                  "",
+                ).filter((s) => !s.role.startsWith("Finance -"));
 
-              return (
-                <tr key={person.empCode}>
-                  <td className="ident">{person.empCode}</td>
-                  <td>
-                    <div className="text-ink">{person.name}</div>
-                    <div className="mt-0.5 text-xs text-ink-faint">{person.email}</div>
-                  </td>
-                  <td className="text-ink-soft">{person.designation}</td>
-                  <td className="text-ink-soft">
-                    {person.department}
-                    <div className="text-xs text-ink-faint">{person.costCentre}</div>
-                  </td>
-                  <td className="text-ink-soft">
-                    {master.get(person.managerCode ?? "")?.name ?? <span className="text-ink-faint">—</span>}
-                  </td>
-                  <td>
-                    <div className="flex flex-wrap gap-1.5">
-                      {chain.map((step) =>
-                        step.skipped ? (
-                          <Pill key={step.level} tone="neutral">
-                            {step.role} skipped
-                          </Pill>
-                        ) : (
-                          <Pill key={step.level} tone="stamp">
-                            {step.approverName ?? step.role}
-                          </Pill>
-                        ),
+                return (
+                  <tr key={person.empCode}>
+                    <td className="ident">{person.empCode}</td>
+                    <td>
+                      <div className="text-ink">{person.name}</div>
+                      <div className="mt-0.5 text-xs text-ink-faint">{person.email}</div>
+                    </td>
+                    <td className="text-ink-soft">{person.designation}</td>
+                    <td className="text-ink-soft">
+                      {person.department}
+                      <div className="text-xs text-ink-faint">{person.costCentre}</div>
+                    </td>
+                    <td className="text-ink-soft">
+                      {master.get(person.managerCode ?? "")?.name ?? (
+                        <span className="text-ink-faint">—</span>
                       )}
-                      <Pill tone="neutral">Finance</Pill>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </td>
+                    <td>
+                      <div className="flex flex-wrap gap-1.5">
+                        {chain.map((step) =>
+                          step.skipped ? (
+                            <Pill key={step.level} tone="neutral">
+                              {step.role} skipped
+                            </Pill>
+                          ) : (
+                            <Pill key={step.level} tone="stamp">
+                              {step.approverName ?? step.role}
+                            </Pill>
+                          ),
+                        )}
+                        <Pill tone="neutral">Finance</Pill>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </Panel>
 
       <p className="mt-6 max-w-2xl text-xs leading-relaxed text-ink-faint">
-        Note what happens to Suresh Iyer: he is the Reporting Manager his own team claims through, so
-        on his own claim that level drops out and Meera Krishnan acts instead (policy 2.2). Nothing
-        needs configuring for that — it falls out of the reporting line.
+        Note what happens to Suresh Iyer: he is the Reporting Manager his own team claims through, so on his
+        own claim that level drops out and Meera Krishnan acts instead (policy 2.2). Nothing needs
+        configuring for that — it falls out of the reporting line.
       </p>
     </>
   );

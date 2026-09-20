@@ -67,7 +67,11 @@ export function ThresholdForm({
         {error ? <span className="text-xs text-rust">{error}</span> : null}
         <span className="text-xs text-ink-faint">
           A claim of {formatINR(60000)} would need{" "}
-          {rows.filter((r) => 60000 > r.thresholdAbove).map((r) => r.role).join(", ") || "no one"}.
+          {rows
+            .filter((r) => 60000 > r.thresholdAbove)
+            .map((r) => r.role)
+            .join(", ") || "no one"}
+          .
         </span>
       </div>
     </form>

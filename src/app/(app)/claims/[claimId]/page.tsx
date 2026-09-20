@@ -31,9 +31,24 @@ import { DecisionForm } from "@/components/decision-form";
 export const dynamic = "force-dynamic";
 
 const SECTIONS = [
-  { key: "LODGING", number: 1, title: "Lodging", hint: "Room tariff, its taxes, and anything the hotel added." },
-  { key: "TRANSPORT", number: 2, title: "Travel and transportation", hint: "Flights are recorded but not reimbursed - the company was billed directly." },
-  { key: "OTHER", number: 3, title: "Other expenses", hint: "Meals, business entertainment, and anything disallowed." },
+  {
+    key: "LODGING",
+    number: 1,
+    title: "Lodging",
+    hint: "Room tariff, its taxes, and anything the hotel added.",
+  },
+  {
+    key: "TRANSPORT",
+    number: 2,
+    title: "Travel and transportation",
+    hint: "Flights are recorded but not reimbursed - the company was billed directly.",
+  },
+  {
+    key: "OTHER",
+    number: 3,
+    title: "Other expenses",
+    hint: "Meals, business entertainment, and anything disallowed.",
+  },
 ] as const;
 
 export default async function ClaimPage({ params }: PageProps<"/claims/[claimId]">) {
@@ -90,7 +105,12 @@ export default async function ClaimPage({ params }: PageProps<"/claims/[claimId]
 
       <div className="border border-rule bg-card px-5 py-4">
         <Stepper
-          stages={stages.map((s) => ({ ...s, waitingOn: waitingOn?.approver?.name ?? null }))}
+          stages={stages.map((s) => ({
+            ...s,
+            waitingOn: waitingOn?.approver
+              ? `${waitingOn.approver.name}, ${waitingOn.role.toLowerCase()}`
+              : null,
+          }))}
           currentIndex={stageIndex}
         />
       </div>
@@ -100,103 +120,116 @@ export default async function ClaimPage({ params }: PageProps<"/claims/[claimId]
           items={[
             { label: "Claim total, paid by you", value: claim.grossEmployee },
             { label: "Disallowed", value: claim.disallowed, note: "Shown, not dropped" },
-            { label: "Advance adjusted", value: claim.advanceApplied, note: claim.travelRequest.advanceRef ?? undefined },
+            {
+              label: "Advance adjusted",
+              value: claim.advanceApplied,
+              note: claim.travelRequest.advanceRef ?? undefined,
+            },
             claim.recoverable > 0
-              ? { label: "Recoverable from you", value: claim.recoverable, note: "Deducted from payroll", emphasis: true }
+              ? {
+                  label: "Recoverable from you",
+                  value: claim.recoverable,
+                  note: "Deducted from payroll",
+                  emphasis: true,
+                }
               : { label: "Payable to you", value: claim.payable, note: paymentNote(claim), emphasis: true },
           ]}
         />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_21rem]">
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           {SECTIONS.map((section) => {
             const lines = claim.lines.filter((l) => l.section === section.key);
             if (lines.length === 0) return null;
 
             return (
               <Panel key={section.key} number={section.number} title={section.title} hint={section.hint}>
-                <table className="ledger">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>What it was</th>
-                      <th>Paid by</th>
-                      <th className="amount">Amount</th>
-                      <th className="amount">Disallowed</th>
-                      <th className="amount">Claimed</th>
-                      <th>Proof</th>
-                      {editable ? <th className="text-right">Edit</th> : null}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lines.map((line) => {
-                      const attendees = JSON.parse(line.attendeesJson) as string[];
-                      const refs = JSON.parse(line.policyRefsJson) as string[];
-                      const needsAttendees = line.flags.some(
-                        (f) => f.code === "ENTERTAINMENT_ATTENDEES_MISSING" && !f.resolved,
-                      );
-                      return (
-                        <tr key={line.id} className={line.status === "REMOVED" ? "removed" : undefined}>
-                          <td className="whitespace-nowrap text-ink-soft">
-                            {line.lineDate ? formatDate(line.lineDate) : "—"}
-                          </td>
-                          <td>
-                            <div className="text-ink">{line.description}</div>
-                            <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                              <span className="text-xs text-ink-faint">{line.head}</span>
-                              {refs.map((ref) => (
-                                <ClauseTag key={ref} clause={ref} />
-                              ))}
-                            </div>
-                            {line.reason ? (
-                              <p className="mt-1 max-w-md text-xs leading-relaxed text-ink-soft">{line.reason}</p>
-                            ) : null}
-                            {attendees.length > 0 ? (
-                              <p className="mt-1 text-xs text-ink-soft">With: {attendees.join(", ")}</p>
-                            ) : null}
-                            {editable && needsAttendees ? (
-                              <AttendeesForm lineId={line.id} attendees={attendees} />
-                            ) : null}
-                          </td>
-                          <td className="whitespace-nowrap text-ink-soft">{line.paidBy}</td>
-                          <td className="amount">{formatINR(line.gross)}</td>
-                          <td className="amount">
-                            {line.disallowed > 0 ? (
-                              <span className="text-rust">{formatINR(line.disallowed)}</span>
-                            ) : (
-                              <span className="text-ink-faint">—</span>
-                            )}
-                          </td>
-                          <td className="amount font-medium">
-                            {line.paidBy === "Company" ? (
-                              <span className="text-ink-faint">not claimed</span>
-                            ) : (
-                              formatINR(line.status === "REMOVED" ? 0 : line.allowed)
-                            )}
-                          </td>
-                          <td>
-                            {line.document ? (
-                              <Link
-                                href={`/claims/${claim.id}/evidence/${line.document.id}`}
-                                className="ident text-stamp hover:underline"
-                              >
-                                {proofRef(line.document)}
-                              </Link>
-                            ) : (
-                              <span className="text-xs text-rust">none</span>
-                            )}
-                          </td>
-                          {editable ? (
-                            <td>
-                              <LineActions lineId={line.id} status={line.status} />
+                <div className="table-scroll">
+                  <table className="ledger">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>What it was</th>
+                        <th>Paid by</th>
+                        <th className="amount">Amount</th>
+                        <th className="amount">Disallowed</th>
+                        <th className="amount">Claimed</th>
+                        <th>Proof</th>
+                        {editable ? <th className="text-right">Edit</th> : null}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lines.map((line) => {
+                        const attendees = JSON.parse(line.attendeesJson) as string[];
+                        const refs = JSON.parse(line.policyRefsJson) as string[];
+                        const needsAttendees = line.flags.some(
+                          (f) => f.code === "ENTERTAINMENT_ATTENDEES_MISSING" && !f.resolved,
+                        );
+                        return (
+                          <tr key={line.id} className={line.status === "REMOVED" ? "removed" : undefined}>
+                            <td className="whitespace-nowrap text-ink-soft">
+                              {line.lineDate ? formatDate(line.lineDate) : "—"}
                             </td>
-                          ) : null}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            <td>
+                              <div className="text-ink">{line.description}</div>
+                              <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                                <span className="text-xs text-ink-faint">{line.head}</span>
+                                {refs.map((ref) => (
+                                  <ClauseTag key={ref} clause={ref} />
+                                ))}
+                              </div>
+                              {line.reason ? (
+                                <p className="mt-1 max-w-md text-xs leading-relaxed text-ink-soft">
+                                  {line.reason}
+                                </p>
+                              ) : null}
+                              {attendees.length > 0 ? (
+                                <p className="mt-1 text-xs text-ink-soft">With: {attendees.join(", ")}</p>
+                              ) : null}
+                              {editable && needsAttendees ? (
+                                <AttendeesForm lineId={line.id} attendees={attendees} />
+                              ) : null}
+                            </td>
+                            <td className="whitespace-nowrap text-ink-soft">{line.paidBy}</td>
+                            <td className="amount">{formatINR(line.gross)}</td>
+                            <td className="amount">
+                              {line.disallowed > 0 ? (
+                                <span className="text-rust">{formatINR(line.disallowed)}</span>
+                              ) : (
+                                <span className="text-ink-faint">—</span>
+                              )}
+                            </td>
+                            <td className="amount font-medium">
+                              {line.paidBy === "Company" ? (
+                                <span className="text-ink-faint">not claimed</span>
+                              ) : (
+                                formatINR(line.status === "REMOVED" ? 0 : line.allowed)
+                              )}
+                            </td>
+                            <td>
+                              {line.document ? (
+                                <Link
+                                  href={`/claims/${claim.id}/evidence/${line.document.id}`}
+                                  className="ident text-stamp hover:underline"
+                                >
+                                  {proofRef(line.document)}
+                                </Link>
+                              ) : (
+                                <span className="text-xs text-rust">none</span>
+                              )}
+                            </td>
+                            {editable ? (
+                              <td>
+                                <LineActions lineId={line.id} status={line.status} />
+                              </td>
+                            ) : null}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </Panel>
             );
           })}
@@ -212,28 +245,30 @@ export default async function ClaimPage({ params }: PageProps<"/claims/[claimId]
             <div className="border border-dashed border-rule-strong bg-card px-5 py-4">
               <AddLineForm claimId={claim.id} />
               <p className="mt-2 text-xs text-ink-faint">
-                Anything added by hand starts without a proof reference, and policy 5.2 will hold it
-                until you attach one.
+                Anything added by hand starts without a proof reference, and policy 5.2 will hold it until
+                you attach one.
               </p>
             </div>
           ) : null}
 
           <Panel number={4} title="Settlement summary" hint="The same arithmetic as the paper form.">
-            <table className="ledger">
-              <tbody>
-                <SummaryRow label="Total claim, paid by you" value={claim.grossEmployee} />
-                <SummaryRow
-                  label="Paid by the company (recorded, not reimbursed)"
-                  value={claim.grossCompany}
-                  muted
-                />
-                <SummaryRow label="Less: disallowed" value={claim.disallowed} negative />
-                <SummaryRow label="Net reimbursable claim" value={claim.netClaim} strong />
-                <SummaryRow label="Less: advance drawn" value={claim.advanceApplied} negative />
-                <SummaryRow label="Amount payable to you" value={claim.payable} strong />
-                <SummaryRow label="Amount recoverable from you" value={claim.recoverable} />
-              </tbody>
-            </table>
+            <div className="table-scroll">
+              <table className="ledger">
+                <tbody>
+                  <SummaryRow label="Total claim, paid by you" value={claim.grossEmployee} />
+                  <SummaryRow
+                    label="Paid by the company (recorded, not reimbursed)"
+                    value={claim.grossCompany}
+                    muted
+                  />
+                  <SummaryRow label="Less: disallowed" value={claim.disallowed} negative />
+                  <SummaryRow label="Net reimbursable claim" value={claim.netClaim} strong />
+                  <SummaryRow label="Less: advance drawn" value={claim.advanceApplied} negative />
+                  <SummaryRow label="Amount payable to you" value={claim.payable} strong />
+                  <SummaryRow label="Amount recoverable from you" value={claim.recoverable} />
+                </tbody>
+              </table>
+            </div>
           </Panel>
 
           <Panel number={5} title="Approval and finance processing">
@@ -249,7 +284,9 @@ export default async function ClaimPage({ params }: PageProps<"/claims/[claimId]
                       <div className="text-sm text-ink">
                         <span className="ident mr-2 text-ink-faint">{step.level}</span>
                         {step.role}
-                        {step.approver ? <span className="text-ink-soft"> · {step.approver.name}</span> : null}
+                        {step.approver ? (
+                          <span className="text-ink-soft"> · {step.approver.name}</span>
+                        ) : null}
                       </div>
                       <div className="mt-0.5 max-w-lg text-xs leading-relaxed text-ink-faint">
                         {step.skipReason ?? step.requiredBecause}
@@ -289,60 +326,67 @@ export default async function ClaimPage({ params }: PageProps<"/claims/[claimId]
             className="scroll-mt-8"
           >
             <div id="evidence" />
-            <table className="ledger">
-              <thead>
-                <tr>
-                  <th>Message</th>
-                  <th>Read as</th>
-                  <th className="amount">Amount</th>
-                  <th>Outcome</th>
-                </tr>
-              </thead>
-              <tbody>
-                {documents.map((doc) => {
-                  const extracted = JSON.parse(doc.extractedJson) as { amount?: number };
-                  return (
-                    <tr key={doc.id} className={doc.excluded ? "removed" : undefined}>
-                      <td>
-                        <Link
-                          href={`/claims/${claim.id}/evidence/${doc.id}`}
-                          className="text-ink hover:text-stamp hover:underline"
-                        >
-                          {doc.subject || doc.filename}
-                        </Link>
-                        <div className="mt-0.5 text-xs text-ink-faint">
-                          {doc.fromAddr} · {doc.sentAt ? formatDate(doc.sentAt) : ""}
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap text-ink-soft">
-                        {CLASSIFICATION_LABEL[doc.classification] ?? doc.classification}
-                        <div className="text-xs text-ink-faint">
-                          {doc.parsedBy === "gemini" ? "read by Gemini" : "read by rules"} ·{" "}
-                          {Math.round(doc.confidence * 100)}%
-                        </div>
-                      </td>
-                      <td className="amount">
-                        {extracted.amount !== undefined ? formatINR(extracted.amount) : "—"}
-                      </td>
-                      <td className="max-w-xs text-xs leading-relaxed text-ink-soft">
-                        {doc.excluded ? doc.excludeReason : "Claimed"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="table-scroll">
+              <table className="ledger">
+                <thead>
+                  <tr>
+                    <th>Message</th>
+                    <th>Read as</th>
+                    <th className="amount">Amount</th>
+                    <th>Outcome</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.map((doc) => {
+                    const extracted = JSON.parse(doc.extractedJson) as { amount?: number };
+                    return (
+                      <tr key={doc.id} className={doc.excluded ? "removed" : undefined}>
+                        <td>
+                          <Link
+                            href={`/claims/${claim.id}/evidence/${doc.id}`}
+                            className="text-ink hover:text-stamp hover:underline"
+                          >
+                            {doc.subject || doc.filename}
+                          </Link>
+                          <div className="mt-0.5 text-xs text-ink-faint">
+                            {doc.fromAddr} · {doc.sentAt ? formatDate(doc.sentAt) : ""}
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap text-ink-soft">
+                          {CLASSIFICATION_LABEL[doc.classification] ?? doc.classification}
+                          <div className="text-xs text-ink-faint">
+                            {doc.parsedBy === "gemini" ? "read by Gemini" : "read by rules"} ·{" "}
+                            {Math.round(doc.confidence * 100)}%
+                          </div>
+                        </td>
+                        <td className="amount">
+                          {extracted.amount !== undefined ? formatINR(extracted.amount) : "—"}
+                        </td>
+                        <td className="max-w-xs text-xs leading-relaxed text-ink-soft">
+                          {doc.excluded ? doc.excludeReason : "Claimed"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </Panel>
 
           <Panel title="Audit trail" hint="Retained for 8 years under the Companies Act.">
             <ol className="divide-y divide-rule">
               {audit.map((event) => (
-                <li key={event.id} className="flex items-baseline justify-between gap-4 px-5 py-2.5 text-sm">
+                <li
+                  key={event.id}
+                  className="flex items-baseline justify-between gap-4 px-5 py-2.5 text-sm"
+                >
                   <span className="text-ink">
                     {humanEvent(event.action)}
                     {event.actor ? <span className="text-ink-soft"> · {event.actor.name}</span> : null}
                   </span>
-                  <span className="whitespace-nowrap text-xs text-ink-faint">{formatDateTime(event.at)}</span>
+                  <span className="whitespace-nowrap text-xs text-ink-faint">
+                    {formatDateTime(event.at)}
+                  </span>
                 </li>
               ))}
             </ol>
@@ -354,8 +398,7 @@ export default async function ClaimPage({ params }: PageProps<"/claims/[claimId]
             <div className="border border-rule bg-card px-5 py-4">
               <div className="text-sm font-semibold text-ink">Ready to file?</div>
               <p className="mt-1 text-xs leading-relaxed text-ink-soft">
-                Due by {claim.dueBy ? formatDate(claim.dueBy) : "—"}, seven days from the date you got
-                back.
+                Due by {claim.dueBy ? formatDate(claim.dueBy) : "—"}, seven days from the date you got back.
               </p>
               <div className="mt-3">
                 <SubmitClaimButton claimId={claim.id} blocking={blocking.length} />
@@ -377,7 +420,12 @@ export default async function ClaimPage({ params }: PageProps<"/claims/[claimId]
               ) : null}
 
               {[...blocking, ...warnings].map((flag) => (
-                <MarginNote key={flag.id} severity={flag.severity} message={flag.message} clause={flag.policyRef}>
+                <MarginNote
+                  key={flag.id}
+                  severity={flag.severity}
+                  message={flag.message}
+                  clause={flag.policyRef}
+                >
                   {editable ? <ResolveFlagForm flagId={flag.id} /> : null}
                 </MarginNote>
               ))}
@@ -389,7 +437,12 @@ export default async function ClaimPage({ params }: PageProps<"/claims/[claimId]
                   </summary>
                   <div className="mt-3 space-y-3">
                     {notes.map((flag) => (
-                      <MarginNote key={flag.id} severity="INFO" message={flag.message} clause={flag.policyRef} />
+                      <MarginNote
+                        key={flag.id}
+                        severity="INFO"
+                        message={flag.message}
+                        clause={flag.policyRef}
+                      />
                     ))}
                   </div>
                 </details>
@@ -468,7 +521,9 @@ function SummaryRow({
 }) {
   return (
     <tr>
-      <td className={strong ? "font-medium text-ink" : muted ? "text-ink-faint" : "text-ink-soft"}>{label}</td>
+      <td className={strong ? "font-medium text-ink" : muted ? "text-ink-faint" : "text-ink-soft"}>
+        {label}
+      </td>
       <td className="amount">
         <Money
           value={value}

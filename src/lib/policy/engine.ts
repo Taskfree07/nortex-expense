@@ -248,7 +248,8 @@ function buildLodgingLines(
         key,
         section: "OTHER",
         head: "Non-reimbursable",
-        description: `${line.description} on hotel folio ${e.invoiceNo ?? ""} (incl. tax ${formatINR(share)})`.trim(),
+        description:
+          `${line.description} on hotel folio ${e.invoiceNo ?? ""} (incl. tax ${formatINR(share)})`.trim(),
         lineDate: line.date,
         merchant: e.merchant,
         paidBy: "Employee",
@@ -428,8 +429,7 @@ function buildEntertainmentLine(
     gross: amount,
     disallowed: 0,
     allowed: amount,
-    reason:
-      "Hosted for a customer, so it is business entertainment and not the meal allowance.",
+    reason: "Hosted for a customer, so it is business entertainment and not the meal allowance.",
     policyRefs: ["3.5"],
     attendees,
     documentFilename: doc.filename,
@@ -495,7 +495,8 @@ function buildFlightLines(
       gross: sector.total,
       disallowed: 0,
       allowed: 0,
-      reason: "Booked through the travel desk and billed to the company. Recorded for the record, not reimbursed.",
+      reason:
+        "Booked through the travel desk and billed to the company. Recorded for the record, not reimbursed.",
       policyRefs: ["3.2"],
       attendees: [],
       documentFilename: doc.filename,
@@ -519,7 +520,11 @@ function excludedFlag(doc: ParsedDocument): EngineFlag {
     PAYMENT_FAILED: { code: "PAYMENT_FAILED_NOTICE", severity: "INFO", ref: "5.2" },
     PROMOTION: { code: "NOISE", severity: "INFO", ref: "" },
   };
-  const meta = byCode[doc.classification] ?? { code: "DUPLICATE_BILL", severity: "INFO" as const, ref: "5.3" };
+  const meta = byCode[doc.classification] ?? {
+    code: "DUPLICATE_BILL",
+    severity: "INFO" as const,
+    ref: "5.3",
+  };
   return {
     code: meta.code,
     severity: meta.severity,
@@ -637,7 +642,9 @@ function checkLodgingCoverage(lines: ProposedLine[], input: EngineInput, flags: 
 /** A trip that starts with an airport transfer usually ends with one. */
 function checkReturnTransfer(lines: ProposedLine[], input: EngineInput, flags: EngineFlag[]) {
   const transfers = lines.filter(
-    (l) => l.head === "Local conveyance" && /airport|\b(pnq|blr|maa|del|bom|hyd|ccu)\b/i.test(`${l.fromLoc ?? ""} ${l.toLoc ?? ""}`),
+    (l) =>
+      l.head === "Local conveyance" &&
+      /airport|\b(pnq|blr|maa|del|bom|hyd|ccu)\b/i.test(`${l.fromLoc ?? ""} ${l.toLoc ?? ""}`),
   );
   const destinationDeparture = transfers.some((l) => {
     if (!l.lineDate) return false;

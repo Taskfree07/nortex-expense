@@ -106,7 +106,12 @@ export async function readReceiptImage(imagePath: string): Promise<ReceiptReadin
 
   if (!key) {
     if (fallback) return { extracted: fallback, parsedBy: "rule", confidence: 0.95 };
-    return { extracted: {}, parsedBy: "rule", confidence: 0, error: "No GEMINI_API_KEY and no stored reading." };
+    return {
+      extracted: {},
+      parsedBy: "rule",
+      confidence: 0,
+      error: "No GEMINI_API_KEY and no stored reading.",
+    };
   }
 
   try {
@@ -121,7 +126,12 @@ export async function readReceiptImage(imagePath: string): Promise<ReceiptReadin
         headers: { "content-type": "application/json", "x-goog-api-key": key },
         body: JSON.stringify({
           contents: [
-            { parts: [{ inline_data: { mime_type: mime, data: bytes.toString("base64") } }, { text: PROMPT }] },
+            {
+              parts: [
+                { inline_data: { mime_type: mime, data: bytes.toString("base64") } },
+                { text: PROMPT },
+              ],
+            },
           ],
           generationConfig: { temperature: 0, responseMimeType: "application/json" },
         }),
@@ -129,7 +139,8 @@ export async function readReceiptImage(imagePath: string): Promise<ReceiptReadin
       },
     );
 
-    if (!response.ok) throw new Error(`Gemini HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`);
+    if (!response.ok)
+      throw new Error(`Gemini HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`);
 
     const payload = (await response.json()) as {
       candidates?: { content?: { parts?: { text?: string }[] } }[];
@@ -141,7 +152,12 @@ export async function readReceiptImage(imagePath: string): Promise<ReceiptReadin
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (fallback) {
-      return { extracted: fallback, parsedBy: "rule", confidence: 0.95, error: `Gemini unavailable (${message}); used the stored reading.` };
+      return {
+        extracted: fallback,
+        parsedBy: "rule",
+        confidence: 0.95,
+        error: `Gemini unavailable (${message}); used the stored reading.`,
+      };
     }
     return { extracted: {}, parsedBy: "rule", confidence: 0, error: message };
   }
@@ -149,13 +165,16 @@ export async function readReceiptImage(imagePath: string): Promise<ReceiptReadin
 
 /** Maps the model's JSON onto our Extraction shape, coercing every number. */
 function normalise(json: Record<string, unknown>): Extraction {
-  const num = (v: unknown) => (v === undefined || v === null ? undefined : parseINR(String(v)) ?? undefined);
+  const num = (v: unknown) =>
+    v === undefined || v === null ? undefined : (parseINR(String(v)) ?? undefined);
   const dateTime = (d: unknown, t?: unknown) => {
     const date = parseLooseDate(d ? String(d) : null);
     if (!date) return undefined;
     if (!t) return date.toISOString();
     const [h, m] = String(t).split(":");
-    return new Date(`${String(d)}T${(h ?? "00").padStart(2, "0")}:${(m ?? "00").padStart(2, "0")}:00+05:30`).toISOString();
+    return new Date(
+      `${String(d)}T${(h ?? "00").padStart(2, "0")}:${(m ?? "00").padStart(2, "0")}:00+05:30`,
+    ).toISOString();
   };
 
   const items = Array.isArray(json.lineItems) ? (json.lineItems as Record<string, unknown>[]) : [];

@@ -180,8 +180,12 @@ const hotelInvoiceRule: Rule = {
         invoiceNo:
           firstMatch(body, /Folio no\s+([A-Z0-9/\-]+)/i) ??
           firstMatch(e.subject, /Tax Invoice\s+([A-Z0-9/\-]+)/i),
-        checkIn: parseLooseDate(firstMatch(body, /Check-?in\s+([\d]{1,2}\s+\w{3}\s+\d{4})/i))?.toISOString(),
-        checkOut: parseLooseDate(firstMatch(body, /Check-?out\s+([\d]{1,2}\s+\w{3}\s+\d{4})/i))?.toISOString(),
+        checkIn: parseLooseDate(
+          firstMatch(body, /Check-?in\s+([\d]{1,2}\s+\w{3}\s+\d{4})/i),
+        )?.toISOString(),
+        checkOut: parseLooseDate(
+          firstMatch(body, /Check-?out\s+([\d]{1,2}\s+\w{3}\s+\d{4})/i),
+        )?.toISOString(),
         nights: Number(firstMatch(body, /Nights\s+(\d+)/i) ?? 0) || undefined,
         folioLines,
         subTotal: parseINR(firstMatch(body, /Sub ?total\s+([\d,]+\.\d{2})/i)) ?? undefined,
@@ -189,7 +193,9 @@ const hotelInvoiceRule: Rule = {
         amount: parseINR(firstMatch(body, /Invoice total\s+([\d,]+\.\d{2})/i)) ?? undefined,
         paidBy: /settled by:?\s*guest/i.test(body) ? "Employee" : undefined,
         paymentInstrument: firstMatch(body, /Settled by:\s*(.+)/i),
-        occurredAt: parseLooseDate(firstMatch(body, /Check-?out\s+([\d]{1,2}\s+\w{3}\s+\d{4})/i))?.toISOString(),
+        occurredAt: parseLooseDate(
+          firstMatch(body, /Check-?out\s+([\d]{1,2}\s+\w{3}\s+\d{4})/i),
+        )?.toISOString(),
       },
     };
   },
@@ -297,10 +303,7 @@ const RULES: Rule[] = [
  * Reads one email. `claimantEmail` and `claimantName` decide whether a receipt
  * belongs to the claimant at all - policy 4 bars expenses incurred by anyone else.
  */
-export function parseEmail(
-  email: RawEmail,
-  claimant: { email: string; name: string },
-): ParsedDocument {
+export function parseEmail(email: RawEmail, claimant: { email: string; name: string }): ParsedDocument {
   const rule = RULES.find((r) => r.matches(email));
   const result = rule
     ? rule.parse(email)
@@ -326,7 +329,10 @@ export function parseEmail(
 
   applyOwnership(doc, claimant);
 
-  if (!doc.excluded && ["CAB_RECEIPT", "MEAL_BILL", "ENTERTAINMENT_BILL", "HOTEL_INVOICE"].includes(doc.classification)) {
+  if (
+    !doc.excluded &&
+    ["CAB_RECEIPT", "MEAL_BILL", "ENTERTAINMENT_BILL", "HOTEL_INVOICE"].includes(doc.classification)
+  ) {
     doc.fingerprint = fingerprint({
       merchant: doc.extracted.merchant,
       amount: doc.extracted.amount,

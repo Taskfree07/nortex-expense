@@ -28,7 +28,11 @@ export default async function ApprovalsPage() {
       />
 
       {requestSteps.length > 0 ? (
-        <Panel className="mb-6" title="Travel requests" hint="Approve before anything is booked (policy 1.1).">
+        <Panel
+          className="mb-6"
+          title="Travel requests"
+          hint="Approve before anything is booked (policy 1.1)."
+        >
           <ul className="divide-y divide-rule">
             {requestSteps.map((step) => (
               <li key={step.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">

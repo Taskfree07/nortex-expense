@@ -6,13 +6,36 @@
 export type CityClass = "TIER_1" | "TIER_2" | "TIER_3";
 
 export const TIER_1_CITIES = [
-  "bengaluru", "bangalore", "mumbai", "delhi", "new delhi", "delhi ncr", "gurgaon",
-  "gurugram", "noida", "hyderabad", "chennai", "pune", "kolkata",
+  "bengaluru",
+  "bangalore",
+  "mumbai",
+  "delhi",
+  "new delhi",
+  "delhi ncr",
+  "gurgaon",
+  "gurugram",
+  "noida",
+  "hyderabad",
+  "chennai",
+  "pune",
+  "kolkata",
 ];
 
 export const TIER_2_CITIES = [
-  "ahmedabad", "jaipur", "lucknow", "chandigarh", "kochi", "coimbatore", "indore",
-  "nagpur", "bhubaneswar", "visakhapatnam", "surat", "vadodara", "mysuru", "mysore",
+  "ahmedabad",
+  "jaipur",
+  "lucknow",
+  "chandigarh",
+  "kochi",
+  "coimbatore",
+  "indore",
+  "nagpur",
+  "bhubaneswar",
+  "visakhapatnam",
+  "surat",
+  "vadodara",
+  "mysuru",
+  "mysore",
 ];
 
 /** Policy 3.1 - lodging, per night, on the room tariff excluding taxes. */
@@ -56,8 +79,14 @@ export const NON_REIMBURSABLE_PATTERNS: { pattern: RegExp; label: string }[] = [
   { pattern: /in[-\s]?room entertainment|pay per view|movie/i, label: "In-room entertainment" },
   { pattern: /\bspa\b|massage/i, label: "Spa" },
   { pattern: /\bgym\b|fitness cent/i, label: "Gym" },
-  { pattern: /personal (phone|call|data)|telephone charges|internet usage/i, label: "Personal phone or data" },
-  { pattern: /\balcohol\b|\bliquor\b|\bbeer\b|\bwine\b|\bwhisky\b|\bvodka\b|\brum\b|\bbar\b(?!\s*code)/i, label: "Alcohol" },
+  {
+    pattern: /personal (phone|call|data)|telephone charges|internet usage/i,
+    label: "Personal phone or data",
+  },
+  {
+    pattern: /\balcohol\b|\bliquor\b|\bbeer\b|\bwine\b|\bwhisky\b|\bvodka\b|\brum\b|\bbar\b(?!\s*code)/i,
+    label: "Alcohol",
+  },
   { pattern: /\bfine\b|penalty|challan/i, label: "Fine or penalty" },
   { pattern: /travel insurance/i, label: "Travel insurance" },
 ];

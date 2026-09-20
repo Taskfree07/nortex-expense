@@ -93,10 +93,10 @@ export default async function CategoriesPage() {
       </div>
 
       <p className="mt-6 max-w-2xl text-xs leading-relaxed text-ink-faint">
-        Deliberately left out: a drag-and-drop workflow canvas and a form builder. The stage
-        sequences are seeded from the two forms Nortex uses today, and the thresholds above are the
-        part that actually changes month to month — so that is the part that is editable. Totals on
-        claims already filed do not move: an in-flight claim keeps the chain it was filed under.
+        Deliberately left out: a drag-and-drop workflow canvas and a form builder. The stage sequences are
+        seeded from the two forms Nortex uses today, and the thresholds above are the part that actually
+        changes month to month — so that is the part that is editable. Totals on claims already filed do not
+        move: an in-flight claim keeps the chain it was filed under.
       </p>
     </>
   );

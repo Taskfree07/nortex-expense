@@ -49,16 +49,30 @@ export default async function FinancePage() {
 
       <div className="grid gap-px border border-rule bg-rule sm:grid-cols-4">
         <Tile label="To verify" value={String(toVerify.length)} note="Required on every claim" />
-        <Tile label="Queued for payment" value={formatINR(queuedTotal)} note={`${queued.length} claim(s)`} />
-        <Tile label="Recoverable from employees" value={formatINR(recoveries)} note="Adjusted through payroll" />
+        <Tile
+          label="Queued for payment"
+          value={formatINR(queuedTotal)}
+          note={`${queued.length} claim(s)`}
+        />
+        <Tile
+          label="Recoverable from employees"
+          value={formatINR(recoveries)}
+          note="Adjusted through payroll"
+        />
         <Tile label="Paid" value={String(paid.length)} note="Closed and on the record" />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Panel title="Waiting on Finance" hint="Business approvals are done; verification is the last check before payment.">
+        <Panel
+          title="Waiting on Finance"
+          hint="Business approvals are done; verification is the last check before payment."
+        >
           {toVerify.length === 0 ? (
             <div className="px-5 py-6">
-              <EmptyState title="Nothing to verify" body="Everything approved has already been through Finance." />
+              <EmptyState
+                title="Nothing to verify"
+                body="Everything approved has already been through Finance."
+              />
             </div>
           ) : (
             <ClaimRows claims={toVerify} />
@@ -76,7 +90,11 @@ export default async function FinancePage() {
         </Panel>
       </div>
 
-      <Panel className="mt-6" title="Where the money goes" hint="Across every claim line that has been confirmed.">
+      <Panel
+        className="mt-6"
+        title="Where the money goes"
+        hint="Across every claim line that has been confirmed."
+      >
         {spend.length === 0 ? (
           <div className="px-5 py-6">
             <EmptyState title="Nothing claimed yet" body="Spend by head appears once claims are filed." />

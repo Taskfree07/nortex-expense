@@ -66,7 +66,7 @@ export default async function RequestPage({ params }: PageProps<"/requests/[trqI
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_21rem]">
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Panel number={1} title="Who is travelling">
             <dl className="grid gap-x-8 gap-y-3 px-5 py-4 sm:grid-cols-2">
               <Detail label="Employee" value={`${request.employee.name} (${request.employee.empCode})`} />
@@ -79,32 +79,34 @@ export default async function RequestPage({ params }: PageProps<"/requests/[trqI
           </Panel>
 
           <Panel number={2} title="What it was expected to cost">
-            <table className="ledger">
-              <thead>
-                <tr>
-                  <th>Head</th>
-                  <th>Basis</th>
-                  <th>Borne by</th>
-                  <th className="amount">Estimate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {estimates.map((row) => (
-                  <tr key={row.head}>
-                    <td className="text-ink">{row.head}</td>
-                    <td className="text-ink-soft">{row.basis}</td>
-                    <td className="text-ink-soft">{row.borneBy}</td>
-                    <td className="amount">{formatINR(row.estimate)}</td>
+            <div className="table-scroll">
+              <table className="ledger">
+                <thead>
+                  <tr>
+                    <th>Head</th>
+                    <th>Basis</th>
+                    <th>Borne by</th>
+                    <th className="amount">Estimate</th>
                   </tr>
-                ))}
-                <tr>
-                  <td colSpan={3} className="font-medium text-ink">
-                    Total estimated cost
-                  </td>
-                  <td className="amount font-semibold">{formatINR(request.estimatedTotal)}</td>
-                </tr>
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {estimates.map((row) => (
+                    <tr key={row.head}>
+                      <td className="text-ink">{row.head}</td>
+                      <td className="text-ink-soft">{row.basis}</td>
+                      <td className="text-ink-soft">{row.borneBy}</td>
+                      <td className="amount">{formatINR(row.estimate)}</td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <td colSpan={3} className="font-medium text-ink">
+                      Total estimated cost
+                    </td>
+                    <td className="amount font-semibold">{formatINR(request.estimatedTotal)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
             <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-rule px-5 py-3 text-sm">
               <span className="text-ink-soft">
                 Advance requested · ceiling is 60% of the {formatINR(employeeBorne)} you bear
@@ -118,7 +120,11 @@ export default async function RequestPage({ params }: PageProps<"/requests/[trqI
             </div>
           </Panel>
 
-          <Panel number={3} title="Approvals" hint="Policy 2: the chain is set by the value and the travel type.">
+          <Panel
+            number={3}
+            title="Approvals"
+            hint="Policy 2: the chain is set by the value and the travel type."
+          >
             <ul className="divide-y divide-rule">
               {request.approvals.map((step) => (
                 <li key={step.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3">
@@ -126,9 +132,13 @@ export default async function RequestPage({ params }: PageProps<"/requests/[trqI
                     <div className="text-sm text-ink">
                       <span className="ident mr-2 text-ink-faint">{step.level}</span>
                       {step.role}
-                      {step.approver ? <span className="text-ink-soft"> · {step.approver.name}</span> : null}
+                      {step.approver ? (
+                        <span className="text-ink-soft"> · {step.approver.name}</span>
+                      ) : null}
                     </div>
-                    <div className="mt-0.5 text-xs text-ink-faint">{step.skipReason ?? step.requiredBecause}</div>
+                    <div className="mt-0.5 text-xs text-ink-faint">
+                      {step.skipReason ?? step.requiredBecause}
+                    </div>
                     {step.remarks ? (
                       <p className="mt-1.5 border-l-2 border-rule-strong pl-3 text-sm text-ink-soft">
                         “{step.remarks}”
@@ -159,12 +169,17 @@ export default async function RequestPage({ params }: PageProps<"/requests/[trqI
           <Panel title="What happened" hint="Everything on this request, in order.">
             <ol className="divide-y divide-rule">
               {audit.map((event) => (
-                <li key={event.id} className="flex items-baseline justify-between gap-4 px-5 py-2.5 text-sm">
+                <li
+                  key={event.id}
+                  className="flex items-baseline justify-between gap-4 px-5 py-2.5 text-sm"
+                >
                   <span className="text-ink">
                     {humanEvent(event.action)}
                     {event.actor ? <span className="text-ink-soft"> · {event.actor.name}</span> : null}
                   </span>
-                  <span className="whitespace-nowrap text-xs text-ink-faint">{formatDateTime(event.at)}</span>
+                  <span className="whitespace-nowrap text-xs text-ink-faint">
+                    {formatDateTime(event.at)}
+                  </span>
                 </li>
               ))}
             </ol>
@@ -221,7 +236,10 @@ export default async function RequestPage({ params }: PageProps<"/requests/[trqI
                 someone else&apos;s.
               </p>
               {claim ? (
-                <Link href={`/claims/${claim.id}#evidence`} className="mt-2 inline-block text-xs text-stamp hover:underline">
+                <Link
+                  href={`/claims/${claim.id}#evidence`}
+                  className="mt-2 inline-block text-xs text-stamp hover:underline"
+                >
                   See what was read
                 </Link>
               ) : null}

@@ -68,11 +68,21 @@ export function LineActions({ lineId, status }: { lineId: string; status: string
   return (
     <div className="flex items-center justify-end gap-2">
       {status === "REMOVED" ? (
-        <button type="button" disabled={busy} onClick={() => set("CONFIRMED")} className="text-xs text-stamp hover:underline">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => set("CONFIRMED")}
+          className="text-xs text-stamp hover:underline"
+        >
           Put back
         </button>
       ) : (
-        <button type="button" disabled={busy} onClick={() => set("REMOVED")} className="text-xs text-ink-faint hover:text-rust hover:underline">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => set("REMOVED")}
+          className="text-xs text-ink-faint hover:text-rust hover:underline"
+        >
           Remove
         </button>
       )}

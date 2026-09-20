@@ -180,9 +180,12 @@ export function Stepper({
               >
                 {stage.label}
               </div>
-              <div className="mt-0.5 text-[0.6875rem] leading-snug text-ink-faint">
-                {current && stage.waitingOn ? `Waiting on ${stage.waitingOn}` : stage.hint}
-              </div>
+              {/* A finished stage needs no instruction; the tick is the message. */}
+              {done ? null : (
+                <div className="mt-0.5 text-[0.6875rem] leading-snug text-ink-faint">
+                  {current && stage.waitingOn ? `Waiting on ${stage.waitingOn}` : stage.hint}
+                </div>
+              )}
             </div>
           </li>
         );
@@ -222,15 +225,7 @@ export function MarginNote({
   );
 }
 
-export function EmptyState({
-  title,
-  body,
-  action,
-}: {
-  title: string;
-  body: string;
-  action?: ReactNode;
-}) {
+export function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
   return (
     <div className="border border-dashed border-rule-strong bg-card px-6 py-10 text-center">
       <p className="text-sm font-medium text-ink">{title}</p>

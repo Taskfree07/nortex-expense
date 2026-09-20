@@ -3,8 +3,18 @@
 const IST_OFFSET = "+05:30";
 
 const MONTHS: Record<string, number> = {
-  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-  jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+  jan: 0,
+  feb: 1,
+  mar: 2,
+  apr: 3,
+  may: 4,
+  jun: 5,
+  jul: 6,
+  aug: 7,
+  sep: 8,
+  oct: 9,
+  nov: 10,
+  dec: 11,
 };
 
 /** Reads "18-Jun-2026", "18 Jun 2026", "Tue, 16 Jun 2026", "2026-06-16". */
@@ -55,7 +65,10 @@ export function formatDate(d: Date | string | null | undefined): string {
   if (!d) return "";
   const date = typeof d === "string" ? new Date(d) : d;
   return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric",
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   }).format(date);
 }
 
@@ -63,8 +76,12 @@ export function formatDateTime(d: Date | string | null | undefined): string {
   if (!d) return "";
   const date = typeof d === "string" ? new Date(d) : d;
   return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(date);
 }
 
@@ -81,9 +98,15 @@ export function inclusiveDays(from: Date, to: Date): number {
 
 /** Policy 5.4 - Finance pays on the 10th and the 25th. */
 export function nextPaymentRun(from: Date): Date {
-  const day = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "numeric" }).format(from));
-  const month = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", month: "numeric" }).format(from));
-  const year = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", year: "numeric" }).format(from));
+  const day = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "numeric" }).format(from),
+  );
+  const month = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", month: "numeric" }).format(from),
+  );
+  const year = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", year: "numeric" }).format(from),
+  );
   if (day <= 10) return new Date(`${year}-${String(month).padStart(2, "0")}-10T00:00:00${IST_OFFSET}`);
   if (day <= 25) return new Date(`${year}-${String(month).padStart(2, "0")}-25T00:00:00${IST_OFFSET}`);
   const nextMonth = month === 12 ? 1 : month + 1;

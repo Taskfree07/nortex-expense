@@ -131,3 +131,12 @@ textarea:focus-visible,
     display: none !important;
   }
 }
+
+/* A ledger keeps its columns; on a narrow screen the section scrolls, the page does not. */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table-scroll .ledger {
+  min-width: 42rem;
+}

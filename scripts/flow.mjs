@@ -6,7 +6,8 @@
 import { chromium } from "playwright";
 
 const base = "http://localhost:3111";
-const out = "D:/Temp/claude/D--New-Assignment-expense-reimbursement-takehome/d0fb6bba-0c0c-4b8f-a87f-125892980657/scratchpad/shots";
+const out =
+  "D:/Temp/claude/D--New-Assignment-expense-reimbursement-takehome/d0fb6bba-0c0c-4b8f-a87f-125892980657/scratchpad/shots";
 const browser = await chromium.launch();
 
 async function as(empCode) {
@@ -28,15 +29,31 @@ console.log("claim drafted:", claimUrl);
 await shot(page, "flow-02-claim-draft", true);
 
 // The two blocking checks on the customer dinner
-console.log("blocking:", await page.locator("text=blocking").first().textContent().catch(() => "-"));
-await page.getByLabel("Who was at the table").fill("R. Balaji (Vertex Technologies), S. Menon (Vertex Technologies), A. Kulkarni (Vertex Technologies)");
+console.log(
+  "blocking:",
+  await page
+    .locator("text=blocking")
+    .first()
+    .textContent()
+    .catch(() => "-"),
+);
+await page
+  .getByLabel("Who was at the table")
+  .fill(
+    "R. Balaji (Vertex Technologies), S. Menon (Vertex Technologies), A. Kulkarni (Vertex Technologies)",
+  );
 await page.getByRole("button", { name: /Record attendees/i }).click();
 await page.waitForLoadState("networkidle");
 await page.waitForTimeout(800);
 
 const clearInputs = page.getByPlaceholder("What was done about it");
-await clearInputs.first().fill("Meera Krishnan approved the customer dinner by mail on 17 Jun, before the booking.");
-await page.getByRole("button", { name: /Clear this check/i }).first().click();
+await clearInputs
+  .first()
+  .fill("Meera Krishnan approved the customer dinner by mail on 17 Jun, before the booking.");
+await page
+  .getByRole("button", { name: /Clear this check/i })
+  .first()
+  .click();
 await page.waitForTimeout(1200);
 await shot(page, "flow-03-checks-cleared", true);
 
@@ -82,7 +99,15 @@ await page.getByRole("button", { name: /^Approve$/ }).click();
 await page.waitForTimeout(2500);
 await page.reload({ waitUntil: "networkidle" });
 await shot(page, "flow-07-paid", true);
-console.log("final:", await page.locator("h1").first().textContent(), "|", await page.locator("body").innerText().then(t => t.split("\n").find(l => /Paid/i.test(l))));
+console.log(
+  "final:",
+  await page.locator("h1").first().textContent(),
+  "|",
+  await page
+    .locator("body")
+    .innerText()
+    .then((t) => t.split("\n").find((l) => /Paid/i.test(l))),
+);
 await ctx.close();
 
 await browser.close();

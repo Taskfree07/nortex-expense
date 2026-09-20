@@ -80,7 +80,10 @@ describe("reading the inbox", () => {
   it("dates every receipt in IST, not UTC", async () => {
     const { documents } = await run();
     const byFile = Object.fromEntries(
-      documents.map((d) => [d.filename, d.extracted.occurredAt ? ymd(new Date(d.extracted.occurredAt)) : null]),
+      documents.map((d) => [
+        d.filename,
+        d.extracted.occurredAt ? ymd(new Date(d.extracted.occurredAt)) : null,
+      ]),
     );
 
     // The 05:20 airport run is on the 16th in Delhi and Bengaluru alike; reading

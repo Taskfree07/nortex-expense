@@ -18,7 +18,9 @@ const target = path.join(process.cwd(), "prisma", "schema.postgres.prisma");
 const schema = await readFile(source, "utf8");
 
 if (!/provider\s*=\s*"sqlite"/.test(schema)) {
-  throw new Error("prisma/schema.prisma no longer says sqlite - check before generating the Postgres variant.");
+  throw new Error(
+    "prisma/schema.prisma no longer says sqlite - check before generating the Postgres variant.",
+  );
 }
 
 const postgres = schema

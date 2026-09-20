@@ -97,9 +97,7 @@ export async function importInboxForRequest(trqId: string, actorCode: string) {
     );
   }
 
-  const approvedRoles = request.approvals
-    .filter((a) => a.decision === "APPROVED")
-    .map((a) => a.role);
+  const approvedRoles = request.approvals.filter((a) => a.decision === "APPROVED").map((a) => a.role);
 
   const estimates: { borneBy: string; estimate: number }[] = JSON.parse(request.estimateJson);
   const employeeBorne = round2(
@@ -182,7 +180,7 @@ export async function importInboxForRequest(trqId: string, actorCode: string) {
     await db.flag.create({
       data: {
         claimId: claim.id,
-        lineId: flag.lineKey ? lineIdByKey.get(flag.lineKey) ?? null : null,
+        lineId: flag.lineKey ? (lineIdByKey.get(flag.lineKey) ?? null) : null,
         code: flag.code,
         severity: flag.severity,
         message: flag.message,
@@ -216,9 +214,7 @@ export async function recalculate(claimId: string) {
   const grossEmployee = round2(
     live.filter((l) => l.paidBy === "Employee").reduce((s, l) => s + l.gross, 0),
   );
-  const grossCompany = round2(
-    live.filter((l) => l.paidBy === "Company").reduce((s, l) => s + l.gross, 0),
-  );
+  const grossCompany = round2(live.filter((l) => l.paidBy === "Company").reduce((s, l) => s + l.gross, 0));
   const disallowed = round2(
     live.filter((l) => l.paidBy === "Employee").reduce((s, l) => s + l.disallowed, 0),
   );
@@ -259,10 +255,7 @@ export async function submitClaim(claimId: string, actorCode: string) {
     throw new Error("There is nothing to claim yet.");
   }
 
-  const roles = requiredApprovalRoles(
-    claim.netClaim,
-    full.travelRequest.travelType === "INTERNATIONAL",
-  );
+  const roles = requiredApprovalRoles(claim.netClaim, full.travelRequest.travelType === "INTERNATIONAL");
   const chain = resolveApprovalChain(
     {
       empCode: full.employee.empCode,
@@ -337,9 +330,7 @@ export async function decideOnClaim(
   }
 
   // Sequential: every earlier step must be settled first.
-  const earlierPending = claim.approvals.filter(
-    (a) => a.level < step.level && a.decision === "PENDING",
-  );
+  const earlierPending = claim.approvals.filter((a) => a.level < step.level && a.decision === "PENDING");
   if (earlierPending.length > 0) throw new Error("An earlier approval is still open.");
 
   await db.approvalStep.update({
@@ -483,7 +474,10 @@ export async function addManualLine(
   });
 
   await recalculate(claimId);
-  await audit("CLAIM", claimId, actorCode, "LINE_ADDED", { description: input.description, gross: input.gross });
+  await audit("CLAIM", claimId, actorCode, "LINE_ADDED", {
+    description: input.description,
+    gross: input.gross,
+  });
   return line;
 }
 
@@ -494,7 +488,9 @@ export async function claimWithEverything(claimId: string) {
     where: { id: claimId },
     include: {
       employee: true,
-      travelRequest: { include: { employee: true, category: true, approvals: { include: { approver: true } } } },
+      travelRequest: {
+        include: { employee: true, category: true, approvals: { include: { approver: true } } },
+      },
       lines: { include: { document: true, flags: true }, orderBy: { sortOrder: "asc" } },
       approvals: { include: { approver: true }, orderBy: { level: "asc" } },
       flags: true,

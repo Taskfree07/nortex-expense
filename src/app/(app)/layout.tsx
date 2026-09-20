@@ -18,23 +18,34 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   });
 
   const nav = [
-    { group: "Work", items: [
-      { href: "/dashboard", label: "Dashboard" },
-      { href: "/requests", label: "Travel requests" },
-      { href: "/claims", label: "Claims", badge: needsAttention || undefined },
-    ]},
+    {
+      group: "Work",
+      items: [
+        { href: "/dashboard", label: "Dashboard" },
+        { href: "/requests", label: "Travel requests" },
+        { href: "/claims", label: "Claims", badge: needsAttention || undefined },
+      ],
+    },
     ...(actor.isApprover || actor.isFinance
-      ? [{ group: "Review", items: [{ href: "/approvals", label: "Approvals", badge: pendingApprovals || undefined }] }]
+      ? [
+          {
+            group: "Review",
+            items: [{ href: "/approvals", label: "Approvals", badge: pendingApprovals || undefined }],
+          },
+        ]
       : []),
-    ...(actor.isFinance
-      ? [{ group: "Finance", items: [{ href: "/finance", label: "Payments" }] }]
-      : []),
+    ...(actor.isFinance ? [{ group: "Finance", items: [{ href: "/finance", label: "Payments" }] }] : []),
     ...(actor.isAdmin
-      ? [{ group: "Build", items: [
-          { href: "/admin/categories", label: "Categories" },
-          { href: "/admin/policy", label: "Policy rules" },
-          { href: "/admin/people", label: "People" },
-        ] }]
+      ? [
+          {
+            group: "Build",
+            items: [
+              { href: "/admin/categories", label: "Categories" },
+              { href: "/admin/policy", label: "Policy rules" },
+              { href: "/admin/people", label: "People" },
+            ],
+          },
+        ]
       : []),
   ];
 
@@ -89,11 +100,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </header>
 
         <nav className="no-print flex gap-1 overflow-x-auto border-b border-rule bg-card px-4 py-2 lg:hidden">
-          {nav.flatMap((s) => s.items).map((item) => (
-            <NavLink key={item.href} href={item.href} badge={item.badge} compact>
-              {item.label}
-            </NavLink>
-          ))}
+          {nav
+            .flatMap((s) => s.items)
+            .map((item) => (
+              <NavLink key={item.href} href={item.href} badge={item.badge} compact>
+                {item.label}
+              </NavLink>
+            ))}
         </nav>
 
         <main className={cn("flex-1 px-4 py-8 sm:px-8")}>

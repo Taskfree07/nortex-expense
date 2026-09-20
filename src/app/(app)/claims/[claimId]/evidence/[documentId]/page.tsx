@@ -14,7 +14,9 @@ export const dynamic = "force-dynamic";
  * One piece of evidence, shown beside what the reader made of it. This is the
  * page that answers "where did this number come from?".
  */
-export default async function EvidencePage({ params }: PageProps<"/claims/[claimId]/evidence/[documentId]">) {
+export default async function EvidencePage({
+  params,
+}: PageProps<"/claims/[claimId]/evidence/[documentId]">) {
   const { claimId, documentId } = await params;
   await requireActor();
 
@@ -36,9 +38,7 @@ export default async function EvidencePage({ params }: PageProps<"/claims/[claim
         lede={`${doc.fromAddr} · ${doc.sentAt ? formatDateTime(doc.sentAt) : "no date"}`}
         actions={
           <>
-            <Pill tone={doc.excluded ? "amber" : "moss"}>
-              {doc.excluded ? "Set aside" : "Claimed"}
-            </Pill>
+            <Pill tone={doc.excluded ? "amber" : "moss"}>{doc.excluded ? "Set aside" : "Claimed"}</Pill>
             <Link href={`/claims/${claimId}#evidence`} className="text-sm text-stamp hover:underline">
               Back to the claim
             </Link>
@@ -53,7 +53,10 @@ export default async function EvidencePage({ params }: PageProps<"/claims/[claim
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Panel title="What arrived" hint={`Read by ${doc.parsedBy === "gemini" ? "Gemini" : "the rule for this sender"}.`}>
+        <Panel
+          title="What arrived"
+          hint={`Read by ${doc.parsedBy === "gemini" ? "Gemini" : "the rule for this sender"}.`}
+        >
           {doc.imagePath ? (
             <div className="border-b border-rule bg-paper p-4">
               <Image
@@ -151,7 +154,9 @@ function humanField(key: string) {
 
 function renderValue(key: string, value: unknown): string {
   if (typeof value === "number") {
-    return ["amount", "subTotal", "taxTotal", "tariffPerNight", "roomCharges", "serviceCharge"].includes(key)
+    return ["amount", "subTotal", "taxTotal", "tariffPerNight", "roomCharges", "serviceCharge"].includes(
+      key,
+    )
       ? formatINR(value)
       : String(value);
   }

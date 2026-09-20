@@ -36,99 +36,141 @@ export default async function PolicyPage() {
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Panel title="Lodging, per night" hint="On the room tariff excluding taxes. Taxes on the tariff are reimbursed in full.">
-          <table className="ledger">
-            <thead>
-              <tr>
-                <th>City class</th>
-                <th className="amount">Limit</th>
-                <th>Clause</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(LODGING_CAP).map(([tier, cap]) => (
-                <tr key={tier}>
-                  <td className="text-ink">{tier.replace("_", " ")}</td>
-                  <td className="amount">{formatINR(cap)}</td>
-                  <td>
-                    <ClauseTag clause="3.1" />
-                  </td>
+        <Panel
+          title="Lodging, per night"
+          hint="On the room tariff excluding taxes. Taxes on the tariff are reimbursed in full."
+        >
+          <div className="table-scroll">
+            <table className="ledger">
+              <thead>
+                <tr>
+                  <th>City class</th>
+                  <th className="amount">Limit</th>
+                  <th>Clause</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {Object.entries(LODGING_CAP).map(([tier, cap]) => (
+                  <tr key={tier}>
+                    <td className="text-ink">{tier.replace("_", " ")}</td>
+                    <td className="amount">{formatINR(cap)}</td>
+                    <td>
+                      <ClauseTag clause="3.1" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Panel>
 
-        <Panel title="Meals, per full day" hint="Travel days count as full days. A bill is needed above the threshold.">
-          <table className="ledger">
-            <thead>
-              <tr>
-                <th>City class</th>
-                <th className="amount">Limit</th>
-                <th>Clause</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(MEAL_CAP).map(([tier, cap]) => (
-                <tr key={tier}>
-                  <td className="text-ink">{tier.replace("_", " ")}</td>
-                  <td className="amount">{formatINR(cap)}</td>
+        <Panel
+          title="Meals, per full day"
+          hint="Travel days count as full days. A bill is needed above the threshold."
+        >
+          <div className="table-scroll">
+            <table className="ledger">
+              <thead>
+                <tr>
+                  <th>City class</th>
+                  <th className="amount">Limit</th>
+                  <th>Clause</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(MEAL_CAP).map(([tier, cap]) => (
+                  <tr key={tier}>
+                    <td className="text-ink">{tier.replace("_", " ")}</td>
+                    <td className="amount">{formatINR(cap)}</td>
+                    <td>
+                      <ClauseTag clause="3.3" />
+                    </td>
+                  </tr>
+                ))}
+                <tr>
+                  <td className="text-ink-soft">Bill required above</td>
+                  <td className="amount">{formatINR(MEAL_BILL_THRESHOLD)}</td>
                   <td>
                     <ClauseTag clause="3.3" />
                   </td>
                 </tr>
-              ))}
-              <tr>
-                <td className="text-ink-soft">Bill required above</td>
-                <td className="amount">{formatINR(MEAL_BILL_THRESHOLD)}</td>
-                <td>
-                  <ClauseTag clause="3.3" />
-                </td>
-              </tr>
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </Panel>
 
-        <Panel title="Approval matrix" hint="Read against the claimed value. International travel always adds the MD.">
-          <table className="ledger">
-            <thead>
-              <tr>
-                <th className="amount">Up to</th>
-                <th>Approvals required</th>
-              </tr>
-            </thead>
-            <tbody>
-              {APPROVAL_MATRIX.map((band) => (
-                <tr key={String(band.upTo)}>
-                  <td className="amount">
-                    {band.upTo === Infinity ? "Above 2,00,000" : formatINR(band.upTo)}
-                  </td>
-                  <td className="text-ink-soft">{band.roles.join(", ")}</td>
+        <Panel
+          title="Approval matrix"
+          hint="Read against the claimed value. International travel always adds the MD."
+        >
+          <div className="table-scroll">
+            <table className="ledger">
+              <thead>
+                <tr>
+                  <th className="amount">Up to</th>
+                  <th>Approvals required</th>
                 </tr>
-              ))}
-              <tr>
-                <td className="amount text-ink-faint">Any</td>
-                <td className="text-ink-soft">
-                  Finance verification, after the business approvals <ClauseTag clause="2.1" />
-                </td>
-              </tr>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {APPROVAL_MATRIX.map((band) => (
+                  <tr key={String(band.upTo)}>
+                    <td className="amount">
+                      {band.upTo === Infinity ? "Above 2,00,000" : formatINR(band.upTo)}
+                    </td>
+                    <td className="text-ink-soft">{band.roles.join(", ")}</td>
+                  </tr>
+                ))}
+                <tr>
+                  <td className="amount text-ink-faint">Any</td>
+                  <td className="text-ink-soft">
+                    Finance verification, after the business approvals <ClauseTag clause="2.1" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </Panel>
 
         <Panel title="The rest of it">
           <dl className="divide-y divide-rule">
-            <Fact label="Advance ceiling" value={`${ADVANCE_CAP_RATIO * 100}% of the employee-borne estimate`} clause="1.2" />
-            <Fact label="Settlement window" value={`${SUBMISSION_WINDOW_DAYS} calendar days from return`} clause="5.1" />
-            <Fact label="Business entertainment" value={`Prior HoD approval above ${formatINR(ENTERTAINMENT_PRIOR_APPROVAL_ABOVE)}, attendees always required`} clause="3.5" />
+            <Fact
+              label="Advance ceiling"
+              value={`${ADVANCE_CAP_RATIO * 100}% of the employee-borne estimate`}
+              clause="1.2"
+            />
+            <Fact
+              label="Settlement window"
+              value={`${SUBMISSION_WINDOW_DAYS} calendar days from return`}
+              clause="5.1"
+            />
+            <Fact
+              label="Business entertainment"
+              value={`Prior HoD approval above ${formatINR(ENTERTAINMENT_PRIOR_APPROVAL_ABOVE)}, attendees always required`}
+              clause="3.5"
+            />
             <Fact label="Payment runs" value="The 10th and the 25th of each month" clause="5.4" />
-            <Fact label="Proof" value="Every claim line needs a supporting document, or it is returned" clause="5.2" />
-            <Fact label="Duplicates" value="Reconciled on bill number, date, amount and merchant" clause="5.3" />
-            <Fact label="Self-approval" value="An approver cannot approve their own claim; that level is skipped" clause="2.2" />
+            <Fact
+              label="Proof"
+              value="Every claim line needs a supporting document, or it is returned"
+              clause="5.2"
+            />
+            <Fact
+              label="Duplicates"
+              value="Reconciled on bill number, date, amount and merchant"
+              clause="5.3"
+            />
+            <Fact
+              label="Self-approval"
+              value="An approver cannot approve their own claim; that level is skipped"
+              clause="2.2"
+            />
           </dl>
         </Panel>
 
-        <Panel title="Never reimbursed" hint="Excluded even when they appear on a hotel folio or a consolidated bill.">
+        <Panel
+          title="Never reimbursed"
+          hint="Excluded even when they appear on a hotel folio or a consolidated bill."
+        >
           <ul className="grid gap-2 px-5 py-4 sm:grid-cols-2">
             {NON_REIMBURSABLE_PATTERNS.map((rule) => (
               <li key={rule.label} className="text-sm text-ink-soft">
@@ -137,8 +179,8 @@ export default async function PolicyPage() {
             ))}
           </ul>
           <p className="border-t border-rule px-5 py-3 text-xs text-ink-faint">
-            Matched against the wording on the bill, with the tax that sits on top of them apportioned
-            and disallowed as well <ClauseTag clause="4" />
+            Matched against the wording on the bill, with the tax that sits on top of them apportioned and
+            disallowed as well <ClauseTag clause="4" />
           </p>
         </Panel>
 

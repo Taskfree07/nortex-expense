@@ -32,7 +32,12 @@ export async function signIn(formData: FormData) {
   if (!person) throw new Error("No such employee.");
 
   const store = await cookies();
-  store.set(ACTOR_COOKIE, empCode, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 7 });
+  store.set(ACTOR_COOKIE, empCode, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+  });
   redirect("/dashboard");
 }
 
@@ -57,10 +62,30 @@ export async function createTravelRequest(formData: FormData) {
   if (!destination) throw new Error("Say where you are going.");
 
   const estimate = [
-    { head: "Air / Rail", basis: "Return, economy", estimate: Number(formData.get("estAir") ?? 0), borneBy: "Company" },
-    { head: "Lodging", basis: "Per policy", estimate: Number(formData.get("estLodging") ?? 0), borneBy: String(formData.get("lodgingBorneBy") ?? "Employee") },
-    { head: "Local conveyance", basis: "Actuals", estimate: Number(formData.get("estConveyance") ?? 0), borneBy: "Employee" },
-    { head: "Meals / allowance", basis: "As per policy", estimate: Number(formData.get("estMeals") ?? 0), borneBy: "Employee" },
+    {
+      head: "Air / Rail",
+      basis: "Return, economy",
+      estimate: Number(formData.get("estAir") ?? 0),
+      borneBy: "Company",
+    },
+    {
+      head: "Lodging",
+      basis: "Per policy",
+      estimate: Number(formData.get("estLodging") ?? 0),
+      borneBy: String(formData.get("lodgingBorneBy") ?? "Employee"),
+    },
+    {
+      head: "Local conveyance",
+      basis: "Actuals",
+      estimate: Number(formData.get("estConveyance") ?? 0),
+      borneBy: "Employee",
+    },
+    {
+      head: "Meals / allowance",
+      basis: "As per policy",
+      estimate: Number(formData.get("estMeals") ?? 0),
+      borneBy: "Employee",
+    },
   ];
   const estimatedTotal = round2(estimate.reduce((s, e) => s + e.estimate, 0));
   const employeeBorne = round2(
@@ -169,7 +194,8 @@ export async function decideOnRequest(formData: FormData) {
     where: { id: stepId },
     include: { travelRequest: true },
   });
-  if (!step.travelRequestId || !step.travelRequest) throw new Error("That step is not on a travel request.");
+  if (!step.travelRequestId || !step.travelRequest)
+    throw new Error("That step is not on a travel request.");
   if (step.approverCode !== actor.empCode) throw new Error("This step is with someone else.");
   if (step.travelRequest.employeeCode === actor.empCode) {
     throw new Error("You cannot approve your own request (policy 2.2).");

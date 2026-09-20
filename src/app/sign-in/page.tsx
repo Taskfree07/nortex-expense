@@ -14,7 +14,14 @@ const ROLE_BLURB: Record<string, string> = {
 };
 
 /** Claimants first, then up the chain, then Finance: the order you meet them in. */
-const ROLE_ORDER = ["Employee", "Reporting Manager", "Head of Department", "Head of Division", "MD", "Finance"];
+const ROLE_ORDER = [
+  "Employee",
+  "Reporting Manager",
+  "Head of Department",
+  "Head of Division",
+  "MD",
+  "Finance",
+];
 
 export default async function SignInPage() {
   const rows = await db.employee.findMany({ orderBy: { empCode: "asc" } });
@@ -30,17 +37,17 @@ export default async function SignInPage() {
           Your trip, settled from your inbox.
         </h1>
         <p className="mt-3 max-w-xl text-base leading-relaxed text-ink-soft">
-          The approvals, the tickets, the cab receipts and the hotel bill are already in your
-          mail. This reads them, applies NTX-HR-POL-11, and files the settlement form for you.
-          You check the numbers instead of typing them.
+          The approvals, the tickets, the cab receipts and the hotel bill are already in your mail. This
+          reads them, applies NTX-HR-POL-11, and files the settlement form for you. You check the numbers
+          instead of typing them.
         </p>
       </div>
 
       <div className="mt-10">
         <h2 className="text-sm font-semibold text-ink">Choose who you are</h2>
         <p className="mt-1 text-sm text-ink-soft">
-          A demo sign-in against the employee master. There is no password here, and the note
-          says so: what you can see and decide comes from this person&apos;s row and reporting line.
+          A demo sign-in against the employee master. There is no password here, and the note says so: what
+          you can see and decide comes from this person&apos;s row and reporting line.
         </p>
 
         <ul className="mt-5 grid gap-px border border-rule bg-rule sm:grid-cols-2 lg:grid-cols-3">
@@ -68,8 +75,8 @@ export default async function SignInPage() {
       </div>
 
       <p className="mt-8 max-w-xl text-xs leading-relaxed text-ink-faint">
-        Start as Chaitanya Reddy to file the Bengaluru trip, then sign in as Suresh Iyer to
-        approve it, Meera Krishnan for the second approval, and Ravi Menon to verify and pay.
+        Start as Chaitanya Reddy to file the Bengaluru trip, then sign in as Suresh Iyer to approve it,
+        Meera Krishnan for the second approval, and Ravi Menon to verify and pay.
       </p>
     </main>
   );

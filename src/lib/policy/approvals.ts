@@ -67,7 +67,8 @@ export function resolveApprovalChain(
         approverName: null,
         requiredBecause: reason,
         skipped: true,
-        skipReason: "The claimant holds this role, so the level is skipped and the next level up acts (policy 2.2).",
+        skipReason:
+          "The claimant holds this role, so the level is skipped and the next level up acts (policy 2.2).",
       });
       continue;
     }

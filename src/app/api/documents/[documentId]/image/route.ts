@@ -6,7 +6,10 @@ import { db } from "@/lib/db";
 import { PACK_DIR } from "@/lib/ingest/pipeline";
 
 /** Serves a bill image out of the pack, for people who are signed in. */
-export async function GET(_request: Request, { params }: RouteContext<"/api/documents/[documentId]/image">) {
+export async function GET(
+  _request: Request,
+  { params }: RouteContext<"/api/documents/[documentId]/image">,
+) {
   const { documentId } = await params;
   await requireActor();
 

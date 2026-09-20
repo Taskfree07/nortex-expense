@@ -30,7 +30,8 @@ const CATEGORIES = [
   {
     code: "DOM_TRAVEL",
     name: "Domestic travel",
-    description: "Pre-trip request with booking, an advance if you need one, and settlement against your bills.",
+    description:
+      "Pre-trip request with booking, an advance if you need one, and settlement against your bills.",
     stagesJson: JSON.stringify([
       { key: "TRAVEL_REQUEST", label: "Travel request", hint: "You are here" },
       { key: "TRIP_APPROVAL", label: "Trip approval", hint: "Goes for a decision" },
@@ -46,8 +47,15 @@ const CATEGORIES = [
       { level: 4, role: "MD", thresholdAbove: 200000 },
     ]),
     rulesJson: JSON.stringify([
-      "LODGING_CAP", "NON_REIMBURSABLE", "MEAL_CAP", "ENTERTAINMENT_APPROVAL",
-      "DUPLICATE_BILL", "MISSING_PROOF", "ADVANCE_CAP", "SUBMISSION_WINDOW", "THIRD_PARTY",
+      "LODGING_CAP",
+      "NON_REIMBURSABLE",
+      "MEAL_CAP",
+      "ENTERTAINMENT_APPROVAL",
+      "DUPLICATE_BILL",
+      "MISSING_PROOF",
+      "ADVANCE_CAP",
+      "SUBMISSION_WINDOW",
+      "THIRD_PARTY",
     ]),
     version: 6,
   },

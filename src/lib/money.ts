@@ -8,7 +8,10 @@ export function round2(n: number): number {
 export function parseINR(raw: string | number | null | undefined): number | null {
   if (raw === null || raw === undefined) return null;
   if (typeof raw === "number") return Number.isFinite(raw) ? round2(raw) : null;
-  const cleaned = raw.replace(/(INR|₹|Rs\.?)/gi, "").replace(/,/g, "").trim();
+  const cleaned = raw
+    .replace(/(INR|₹|Rs\.?)/gi, "")
+    .replace(/,/g, "")
+    .trim();
   const m = cleaned.match(/-?\d+(\.\d+)?/);
   if (!m) return null;
   const n = Number(m[0]);
