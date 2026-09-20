@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // The dev overlay badge sits on top of the sidebar's controls, so it is off.
+  devIndicators: false,
+  outputFileTracingIncludes: {
+    // The inbox, the bills and the company's Excel template are read at runtime,
+    // so they have to travel with the deployed bundle.
+    "/**": ["./data/pack/**"],
+  },
 };
 
 export default nextConfig;

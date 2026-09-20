@@ -1,0 +1,243 @@
+// Nortex Industries - Travel Expense Reimbursement
+// Enums and Json columns are deliberately avoided: the same schema then runs on
+// SQLite (local dev) and PostgreSQL (Neon, on Vercel) with no changes.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Employee {
+  empCode     String  @id
+  name        String
+  email       String  @unique
+  designation String
+  department  String
+  costCentre  String
+  city        String
+  role        String // Employee | Reporting Manager | Head of Department | Head of Division | MD | Finance
+  managerCode String?
+
+  manager Employee?  @relation("Reports", fields: [managerCode], references: [empCode], onDelete: NoAction, onUpdate: NoAction)
+  reports Employee[] @relation("Reports")
+
+  travelRequests TravelRequest[]
+  claims         Claim[]
+  approvalSteps  ApprovalStep[]
+  auditEvents    AuditEvent[]
+}
+
+/// An expense category, configurable by the Admin: it binds a stage sequence,
+/// an approval chain and the policy rule set that is checked live.
+model Category {
+  code          String  @id // DOM_TRAVEL, CONFERENCE, ...
+  name          String
+  description   String
+  currency      String  @default("INR")
+  stagesJson    String // ordered stage list
+  approversJson String // [{ level, role, thresholdAbove }]
+  rulesJson     String // policy rule codes switched on for this category
+  version       Int     @default(1)
+  live          Boolean @default(true)
+
+  travelRequests TravelRequest[]
+}
+
+model TravelRequest {
+  id           String @id @default(cuid())
+  trqId        String @unique // TRQ-2026-0001 - every artefact hangs off this
+  employeeCode String
+  categoryCode String
+
+  purpose     String
+  destination String
+  cityClass   String // TIER_1 | TIER_2 | TIER_3
+  travelType  String @default("DOMESTIC") // DOMESTIC | INTERNATIONAL
+  mode        String
+  currency    String @default("INR")
+  costCentre  String
+
+  fromDate DateTime
+  toDate   DateTime
+  days     Int
+
+  estimateJson     String @default("[]")
+  estimatedTotal   Float  @default(0)
+  advanceRequested Float  @default(0)
+  advanceDisbursed Float  @default(0)
+  advanceRef       String?
+
+  status    String   @default("DRAFT") // DRAFT | PENDING_APPROVAL | APPROVED | RETURNED | REJECTED | SETTLED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  employee  Employee       @relation(fields: [employeeCode], references: [empCode])
+  category  Category       @relation(fields: [categoryCode], references: [code])
+  documents Document[]
+  claims    Claim[]
+  approvals ApprovalStep[]
+  flags     Flag[]
+}
+
+/// One artefact from the inbox: an email, or a bill that arrived as an image.
+model Document {
+  id              String  @id @default(cuid())
+  travelRequestId String?
+
+  source   String // EMAIL | UPLOAD
+  kind     String // EMAIL | RECEIPT_IMAGE
+  filename String
+  messageId String?
+  fromAddr String  @default("")
+  toAddr   String  @default("")
+  subject  String  @default("")
+  sentAt   DateTime?
+  rawText  String  @default("")
+  imagePath String?
+
+  classification String @default("UNKNOWN")
+  parsedBy       String @default("rule") // rule | gemini | manual
+  confidence     Float  @default(0)
+  extractedJson  String @default("{}")
+
+  /// merchant|amount|date|bill-no - policy 5.3 reconciles duplicates on these
+  fingerprint   String?
+  duplicateOfId String?
+
+  excluded      Boolean @default(false)
+  excludeReason String?
+
+  createdAt DateTime @default(now())
+
+  travelRequest TravelRequest? @relation(fields: [travelRequestId], references: [id])
+  claimLines    ClaimLine[]
+}
+
+model Claim {
+  id              String @id @default(cuid())
+  claimNo         String @unique // CLM-2026-000001
+  travelRequestId String
+  employeeCode    String
+
+  status String @default("DRAFT")
+  // DRAFT | SUBMITTED | UNDER_REVIEW | RETURNED | REJECTED
+  // | VERIFIED | QUEUED_FOR_PAYMENT | PAID
+
+  grossEmployee  Float @default(0)
+  grossCompany   Float @default(0)
+  disallowed     Float @default(0)
+  netClaim       Float @default(0)
+  advanceApplied Float @default(0)
+  payable        Float @default(0)
+  recoverable    Float @default(0)
+
+  submittedAt    DateTime?
+  dueBy          DateTime? // policy 5.1 - 7 calendar days from return
+  verifiedAt     DateTime?
+  paymentRunDate DateTime? // policy 5.4 - the 10th or the 25th
+  paidAt         DateTime?
+  paymentRef     String?
+  version        Int       @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  travelRequest TravelRequest   @relation(fields: [travelRequestId], references: [id])
+  employee      Employee        @relation(fields: [employeeCode], references: [empCode])
+  lines         ClaimLine[]
+  approvals     ApprovalStep[]
+  flags         Flag[]
+}
+
+model ClaimLine {
+  id      String @id @default(cuid())
+  claimId String
+
+  section     String // LODGING | TRANSPORT | OTHER
+  head        String // Lodging | Local conveyance | Meals | Business entertainment | Air travel | Non-reimbursable
+  description String
+  lineDate    DateTime?
+  checkIn     DateTime?
+  checkOut    DateTime?
+  nights      Int?
+  fromLoc     String?
+  toLoc       String?
+  mode        String?
+  merchant    String?
+  cityClass   String?
+
+  paidBy     String @default("Employee") // Employee | Company - the form SUMIFs on this word
+  gross      Float  @default(0)
+  disallowed Float  @default(0)
+  allowed    Float  @default(0)
+
+  policyRefsJson String @default("[]")
+  attendeesJson  String @default("[]")
+  reason         String @default("")
+  status         String @default("SUGGESTED") // SUGGESTED | CONFIRMED | REMOVED
+  sortOrder      Int    @default(0)
+
+  documentId String? // policy 5.2 - proof reference, or the line is returned
+
+  claim    Claim     @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  document Document? @relation(fields: [documentId], references: [id])
+  flags    Flag[]
+}
+
+model ApprovalStep {
+  id              String  @id @default(cuid())
+  claimId         String?
+  travelRequestId String?
+
+  level           Int
+  role            String // Reporting Manager | Head of Department | ... | Finance
+  approverCode    String?
+  decision        String  @default("PENDING") // PENDING | APPROVED | RETURNED | REJECTED | SKIPPED
+  remarks         String?
+  decidedAt       DateTime?
+  requiredBecause String  @default("")
+  skipReason      String?
+  createdAt       DateTime @default(now())
+
+  claim         Claim?         @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  travelRequest TravelRequest? @relation(fields: [travelRequestId], references: [id], onDelete: Cascade)
+  approver      Employee?      @relation(fields: [approverCode], references: [empCode])
+}
+
+/// A policy verdict that a human has to see: on a line, a claim or a request.
+model Flag {
+  id              String  @id @default(cuid())
+  claimId         String?
+  travelRequestId String?
+  lineId          String?
+
+  code      String // NON_REIMBURSABLE, DUPLICATE_BILL, MISSING_PROOF, ...
+  severity  String // BLOCK | WARN | INFO
+  message   String
+  policyRef String @default("")
+  detail    String @default("")
+
+  resolved       Boolean @default(false)
+  resolutionNote String?
+  createdAt      DateTime @default(now())
+
+  claim         Claim?         @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  travelRequest TravelRequest? @relation(fields: [travelRequestId], references: [id], onDelete: Cascade)
+  line          ClaimLine?     @relation(fields: [lineId], references: [id], onDelete: Cascade)
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  entity     String // CLAIM | TRAVEL_REQUEST | DOCUMENT | PAYMENT
+  entityId   String
+  actorCode  String?
+  action     String
+  detailJson String   @default("{}")
+  at         DateTime @default(now())
+
+  actor Employee? @relation(fields: [actorCode], references: [empCode])
+}

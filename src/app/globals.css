@@ -1,26 +1,133 @@
 @import "tailwindcss";
 
+/*
+  Nortex Reimbursements.
+
+  The visual idea: the app IS the settlement form. A Nortex employee knows that
+  sheet - ruled sections, right-aligned money, a disallowance column that is
+  never hidden - so the interface keeps its shape and adds what paper could not:
+  live policy notes in the margin and the state of the money at the top.
+
+  Colour is used for verdicts only. Nothing else is tinted.
+*/
+
+@theme {
+  --color-ink: #14181d;
+  --color-ink-soft: #454f5b;
+  --color-ink-faint: #737f8b;
+
+  --color-paper: #f4f5f6;
+  --color-card: #ffffff;
+  --color-rule: #dde1e6;
+  --color-rule-strong: #b9c0c8;
+
+  --color-stamp: #1b4d8f; /* approvals, links, the primary action */
+  --color-stamp-wash: #eaf0f8;
+  --color-amber: #9a6207; /* needs a look */
+  --color-amber-wash: #fbf2e2;
+  --color-rust: #9c3327; /* blocked, disallowed */
+  --color-rust-wash: #faeceb;
+  --color-moss: #2c6047; /* cleared, paid */
+  --color-moss-wash: #e8f1ec;
+
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html,
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Money and identifiers line up in columns, so they are tabular everywhere. */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.ident {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  letter-spacing: -0.01em;
+}
+
+/* The ruled ledger: hairlines between rows, a heavier rule under each header. */
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ledger thead th {
+  border-bottom: 1px solid var(--color-rule-strong);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  text-align: left;
+  white-space: nowrap;
+}
+.ledger tbody td {
+  border-bottom: 1px solid var(--color-rule);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  vertical-align: top;
+}
+.ledger tbody tr:last-child td {
+  border-bottom: 1px solid var(--color-rule-strong);
+}
+.ledger .amount {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ledger tbody tr.removed td {
+  color: var(--color-ink-faint);
+  text-decoration: line-through;
+  text-decoration-color: var(--color-rule-strong);
+}
+
+/* A policy verdict pinned beside the thing it judges. */
+.margin-note {
+  border-left: 2px solid var(--color-rule-strong);
+  padding-left: 0.75rem;
+}
+.margin-note[data-severity="BLOCK"] {
+  border-color: var(--color-rust);
+}
+.margin-note[data-severity="WARN"] {
+  border-color: var(--color-amber);
+}
+.margin-note[data-severity="INFO"] {
+  border-color: var(--color-stamp);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-stamp);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@media print {
+  .no-print {
+    display: none !important;
+  }
 }

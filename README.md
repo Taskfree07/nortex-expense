@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Nortex Reimbursements
 
-## Getting Started
+A travel expense settlement app for Nortex Industries. It reads the employee's
+inbox for a trip, applies the company's travel policy, drafts the settlement
+form, routes it through the approval chain the policy matrix demands, and tracks
+it to the payment run.
 
-First, run the development server:
+Built for the take-home in `../pack`. The pack is the specification.
+
+## Run it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run setup     # generates the Prisma client, creates the SQLite file, seeds the company
+npm run dev       # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Nothing else has to be installed — no database server, no Docker. `npm run setup`
+is idempotent: run it again whenever you want the demo back at its starting point.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Optional, for reading the photographed bills with a model rather than the stored
+readings:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# .env
+GEMINI_API_KEY="..."      # https://aistudio.google.com/apikey — free tier
+```
 
-## Learn More
+## Walk through it
 
-To learn more about Next.js, take a look at the following resources:
+1. **Sign in as Chaitanya Reddy (NX-4471).** There is no password: pick a person.
+2. Open the approved trip **TRQ-2026-0001** and press **Read my inbox**.
+3. The settlement is drafted from the 15 emails and 2 bills. Check the lines, the
+   disallowances, and the policy checks in the margin.
+4. Record the dinner attendees, clear the two blocking checks, and **File the settlement**.
+5. Sign in as **Suresh Iyer** (manager), then **Meera Krishnan** (head of department),
+   then **Ravi Menon** (Finance verification), then **Kavitha Balan** (payment).
+6. Download the filled `.xlsx` at any point — it is the company's own template.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`npm run demo` drives all of that in a real browser and screenshots each step.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Tests
 
-## Deploy on Vercel
+```bash
+npm test
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The suite works the pack's trip end to end: what each of the 15 emails is, what is
+excluded and why, how the hotel folio splits, and the settlement arithmetic
+(₹27,318.04 claimed, ₹929.60 disallowed, ₹26,388.44 net, ₹6,388.44 payable after
+the ₹20,000 advance). The numbers were worked out by hand from the pack before the
+engine existed.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## How it is put together
+
+```
+src/lib/ingest/     reads .eml files and bill images into structured documents
+src/lib/ai/         Gemini for photographed bills, with verified readings as fallback
+src/lib/policy/     the policy as data and as a pure engine; the approval chain resolver
+src/lib/services/   persistence, submission, decisions, the audit trail
+src/lib/excel/      fills the company's own workbook, leaving its formulas alone
+src/app/            Next.js App Router: employee, approver, finance and admin views
+```
+
+The engine is pure: a travel request plus documents in, claim lines and policy
+flags out, no database and no network. That is what makes the whole of it testable
+against the pack.
+
+## Deploying
+
+The app runs on Vercel with a free Neon Postgres database.
+
+```bash
+# 1. Create a Neon project and copy its connection string.
+# 2. In Vercel: New Project -> import this repo -> add the environment variable:
+#      DATABASE_URL = postgresql://...       (and GEMINI_API_KEY if you have one)
+# 3. Deploy. vercel.json already points the build at npm run build:vercel.
+```
+
+`build:vercel` generates the Postgres variant of the schema from the SQLite one,
+pushes it, seeds the company, and builds. Each deployment therefore resets the
+demo data, which is what you want for a demo and not what you would ship to
+Nortex.
+
+## What this is not
+
+A demo sign-in stands in for SSO, and the "inbox" is the pack's folder rather than
+a live mailbox. Both are single, clearly-marked seams. See `NOTE.md` for the full
+list of what was left out on purpose and where it breaks.

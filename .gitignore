@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local database and demo artefacts
+prisma/*.db
+prisma/*.db-journal
+prisma/schema.postgres.prisma
+!.env.example
