@@ -16,6 +16,7 @@ import { inclusiveDays } from "@/lib/dates";
 import { ADVANCE_CAP_RATIO, classifyCity, requiredApprovalRoles } from "@/lib/policy/config";
 import { resolveApprovalChain } from "@/lib/policy/approvals";
 import {
+  addUploadedEvidence,
   addManualLine,
   decideOnClaim,
   importInboxForRequest,
@@ -23,6 +24,7 @@ import {
   setAttendees,
   setLineStatus,
   submitClaim,
+  confirmUnreadableDocument,
   type Decision,
 } from "@/lib/services/claim-service";
 
@@ -306,6 +308,50 @@ export async function importInbox(formData: FormData) {
   const { claimId } = await importInboxForRequest(trqId, actor.empCode);
   revalidatePath("/claims");
   redirect(`/claims/${claimId}`);
+}
+
+/** Evidence the employee dropped on their own trip. */
+export async function uploadEvidence(formData: FormData) {
+  const actor = await requireActor();
+  const trqId = String(formData.get("trqId") ?? "");
+
+  const files: { name: string; bytes: Buffer }[] = [];
+  for (const entry of formData.getAll("files")) {
+    if (!(entry instanceof File) || entry.size === 0) continue;
+    if (entry.size > 8 * 1024 * 1024) {
+      throw new Error(`${entry.name} is larger than 8 MB. Photograph the bill rather than scanning it.`);
+    }
+    files.push({ name: entry.name, bytes: Buffer.from(await entry.arrayBuffer()) });
+  }
+  if (files.length === 0) throw new Error("Choose at least one file.");
+
+  const result = await addUploadedEvidence(trqId, files, actor.empCode);
+  revalidatePath(`/requests/${trqId}`);
+  revalidatePath(`/claims/${result.claimId}`);
+  return result;
+}
+
+/**
+ * What the employee says a bill was, when nothing could read it. The document
+ * stays attached as the proof, so the line is not conjured out of nothing.
+ */
+export async function confirmDocument(formData: FormData) {
+  const actor = await requireActor();
+  const documentId = String(formData.get("documentId") ?? "");
+  const amount = Number(formData.get("amount") ?? 0);
+  const head = String(formData.get("head") ?? "Other");
+  const description = String(formData.get("description") ?? "").trim();
+  const lineDate = String(formData.get("lineDate") ?? "");
+
+  if (!(amount > 0)) throw new Error("Enter what it cost.");
+  if (!description) throw new Error("Say what it was.");
+
+  const claimId = await confirmUnreadableDocument(
+    documentId,
+    { amount, head, description, lineDate: lineDate || undefined },
+    actor.empCode,
+  );
+  revalidatePath(`/claims/${claimId}`);
 }
 
 export async function confirmLine(formData: FormData) {

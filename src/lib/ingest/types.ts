@@ -31,12 +31,18 @@ export type RawEmail = {
   date: string;
   messageId: string;
   body: string;
-  attachments: { filename: string; path?: string }[];
+  /**
+   * `path` is how the pack refers to its bills; `content` is what a real
+   * message carries, decoded from base64.
+   */
+  attachments: { filename: string; path?: string; content?: Buffer; mime?: string }[];
 };
 
 export type FolioLine = { date?: string; description: string; amount: number };
 
 export type Extraction = {
+  /** What the model said this is, when a bill was read rather than an email. */
+  documentType?: string;
   merchant?: string;
   amount?: number;
   currency?: string;
@@ -92,6 +98,9 @@ export type ParsedDocument = {
   sentAt: Date | null;
   rawText: string;
   imagePath?: string;
+  /** An uploaded file travels with the document until it is stored. */
+  fileBase64?: string;
+  mimeType?: string;
   classification: Classification;
   confidence: number;
   parsedBy: "rule" | "gemini" | "manual";
@@ -99,4 +108,6 @@ export type ParsedDocument = {
   fingerprint?: string | null;
   excluded: boolean;
   excludeReason?: string;
+  /** Nothing could be read from it: the employee is asked what it is. */
+  needsReview?: boolean;
 };

@@ -27,6 +27,8 @@ import {
   SubmitClaimButton,
 } from "@/components/claim-forms";
 import { DecisionForm } from "@/components/decision-form";
+import { EvidenceUpload } from "@/components/evidence-upload";
+import { PriceDocumentForm } from "@/components/price-document-form";
 
 export const dynamic = "force-dynamic";
 
@@ -396,6 +398,18 @@ export default async function ClaimPage({ params }: PageProps<"/claims/[claimId]
         <aside className="space-y-4 lg:sticky lg:top-8 lg:self-start">
           {editable ? (
             <div className="border border-rule bg-card px-5 py-4">
+              <div className="text-sm font-semibold text-ink">Missing a bill?</div>
+              <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+                Add it here and the settlement is redrafted around it.
+              </p>
+              <div className="mt-3">
+                <EvidenceUpload trqId={claim.travelRequest.trqId} hasEvidence />
+              </div>
+            </div>
+          ) : null}
+
+          {editable ? (
+            <div className="border border-rule bg-card px-5 py-4">
               <div className="text-sm font-semibold text-ink">Ready to file?</div>
               <p className="mt-1 text-xs leading-relaxed text-ink-soft">
                 Due by {claim.dueBy ? formatDate(claim.dueBy) : "—"}, seven days from the date you got back.
@@ -502,7 +516,7 @@ function whereTheMoneyIs(claim: ClaimShape, waitingOn: ClaimShape["approvals"][n
   if (waitingOn?.approver) {
     return `With ${waitingOn.approver.name} for ${waitingOn.role.toLowerCase()}. Nothing is needed from you right now.`;
   }
-  if (claim.status === "DRAFT") return "Drafted from your inbox. Check the lines and file it.";
+  if (claim.status === "DRAFT") return "Drafted from your evidence. Check the lines and file it.";
   return "Moving through its approval chain.";
 }
 

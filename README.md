@@ -32,10 +32,27 @@ The free tier allows 20 requests a day per model, and one import of this trip
 costs two of them. Past that the reader falls back to the stored readings and
 says so on each document, which is why the tests pass either way.
 
+## Two ways evidence gets in
+
+- **Your own trip.** Raise a travel request, and once it is approved, drag that
+  trip's saved emails (.eml), photographed bills and PDFs onto it. They are read,
+  matched to that Travel Request ID, checked for duplicates against what is
+  already there, and drafted onto the settlement form.
+- **The sample trip.** `TRQ-2026-0001` is the trip from the pack, and its inbox
+  ships with the app. Loading it is offered on that trip only - its bills belong
+  to it and to nobody else.
+
+Both go through the same pipeline and the same policy engine, so a real trip is
+judged by exactly the rules the sample one is.
+
+A bill nothing can read is not guessed at: it is marked, it blocks filing, and
+the employee is asked what it was and what it cost. The document stays attached
+as the proof reference.
+
 ## Walk through it
 
 1. **Sign in as Chaitanya Reddy (NX-4471).** There is no password: pick a person.
-2. Open the approved trip **TRQ-2026-0001** and press **Read my inbox**.
+2. Open the approved trip **TRQ-2026-0001** and press **Load the sample inbox**.
 3. The settlement is drafted from the 15 emails and 2 bills. Check the lines, the
    disallowances, and the policy checks in the margin.
 4. Record the dinner attendees, clear the two blocking checks, and **File the settlement**.

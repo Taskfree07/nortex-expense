@@ -14,7 +14,19 @@ export async function GET(
   await requireActor();
 
   const doc = await db.document.findUnique({ where: { id: documentId } });
-  if (!doc?.imagePath) return NextResponse.json({ error: "No image on this document" }, { status: 404 });
+  if (!doc) return NextResponse.json({ error: "No such document" }, { status: 404 });
+
+  // An uploaded bill lives in the row; the pack's bills live beside the app.
+  if (doc.fileData) {
+    return new NextResponse(new Uint8Array(Buffer.from(doc.fileData, "base64")), {
+      headers: {
+        "content-type": doc.mimeType ?? "application/octet-stream",
+        "cache-control": "private, max-age=3600",
+      },
+    });
+  }
+
+  if (!doc.imagePath) return NextResponse.json({ error: "No image on this document" }, { status: 404 });
 
   // The stored path is relative to the pack; resolve it and refuse anything outside.
   const resolved = path.resolve(PACK_DIR, doc.imagePath);

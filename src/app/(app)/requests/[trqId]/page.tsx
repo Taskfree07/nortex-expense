@@ -9,6 +9,9 @@ import { ADVANCE_CAP_RATIO } from "@/lib/policy/config";
 import { decideOnRequest, disburseAdvance, importInbox } from "@/app/actions";
 import { buttonStyles, LinkButton, Money, PageHeader, Panel, Pill } from "@/components/ui";
 import { DecisionForm } from "@/components/decision-form";
+import { EvidenceUpload } from "@/components/evidence-upload";
+import { cn } from "@/lib/ui";
+import { SAMPLE_TRIP_ID } from "@/lib/sample";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +48,8 @@ export default async function RequestPage({ params }: PageProps<"/requests/[trqI
   );
   const isOwner = request.employeeCode === actor.empCode;
   const claim = request.claims[0];
+  // The pack's inbox belongs to the pack's trip. Every other trip brings its own.
+  const isSampleTrip = request.trqId === SAMPLE_TRIP_ID;
   const audit = await db.auditEvent.findMany({
     where: { entity: "TRAVEL_REQUEST", entityId: request.id },
     include: { actor: true },
@@ -214,19 +219,29 @@ export default async function RequestPage({ params }: PageProps<"/requests/[trqI
             <div className="border border-stamp/30 bg-stamp-wash px-5 py-4">
               <div className="text-sm font-semibold text-ink">Settle this trip</div>
               <p className="mt-1 text-xs leading-relaxed text-ink-soft">
-                {claim
-                  ? "The settlement is already drafted. Re-reading the inbox refreshes it; nothing you have confirmed is claimed twice."
-                  : "Read the inbox for this trip. Approvals, tickets, cab receipts and the hotel bill are matched to this request, the policy is applied, and the form is drafted for you to check."}
+                Bring this trip&apos;s evidence in. Each file is read, matched to{" "}
+                <span className="ident">{request.trqId}</span>, checked against the policy, and drafted onto
+                the settlement form for you to confirm.
               </p>
               <p className="mt-2 text-xs text-ink-faint">
                 Due by {formatDate(addDays(request.toDate, 7))} — 7 days from the date you got back.
               </p>
-              <form action={importInbox} className="mt-3">
-                <input type="hidden" name="trqId" value={request.trqId} />
-                <button type="submit" className={buttonStyles.primary}>
-                  {claim ? "Read the inbox again" : "Read my inbox"}
-                </button>
-              </form>
+              <div className="mt-3">
+                <EvidenceUpload trqId={request.trqId} hasEvidence={request.documents.length > 0} />
+              </div>
+
+              {isSampleTrip ? (
+                <form action={importInbox} className="mt-4 border-t border-stamp/20 pt-3">
+                  <input type="hidden" name="trqId" value={request.trqId} />
+                  <p className="text-xs leading-relaxed text-ink-faint">
+                    This is the sample trip from the pack, so its inbox ships with the app: 15 messages and
+                    two photographed bills.
+                  </p>
+                  <button type="submit" className={cn(buttonStyles.secondary, "mt-2")}>
+                    {claim ? "Load the sample inbox again" : "Load the sample inbox"}
+                  </button>
+                </form>
+              ) : null}
             </div>
           ) : null}
 

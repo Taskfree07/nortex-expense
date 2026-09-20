@@ -25,7 +25,7 @@ export type ReceiptReading = {
 const PROMPT = `You are reading an Indian expense bill for a corporate travel claim.
 Return ONLY a JSON object, no prose, with these keys (omit what is not on the bill):
 {
-  "documentType": "HOTEL_INVOICE" | "MEAL_BILL" | "CAB_RECEIPT" | "OTHER",
+  "documentType": "HOTEL_INVOICE" | "MEAL_BILL" | "ENTERTAINMENT_BILL" | "CAB_RECEIPT" | "FLIGHT_TICKET" | "OTHER",
   "merchant": string,
   "city": string,
   "billNo": string,
@@ -45,7 +45,10 @@ Return ONLY a JSON object, no prose, with these keys (omit what is not on the bi
   "tariffPerNight": number
 }
 Amounts are plain numbers without separators. Copy every line item exactly as printed,
-including personal items such as laundry or mini bar - they are needed to disallow them.`;
+including personal items such as laundry or mini bar - they are needed to disallow them.
+Use ENTERTAINMENT_BILL when the bill is a restaurant bill for several covers hosted for a
+customer, and MEAL_BILL when it is the claimant eating alone or with colleagues.
+If you cannot read a value, omit the key rather than guessing at it.`;
 
 /** Readings of the two bills in the pack, transcribed from the images themselves. */
 const VERIFIED: Record<string, Extraction> = {
@@ -100,11 +103,10 @@ export function verifiedReading(filename: string): Extraction | null {
   return VERIFIED[path.basename(filename)] ?? null;
 }
 
+/** A bill that arrived as a file on disk - the two in the pack. */
 export async function readReceiptImage(imagePath: string): Promise<ReceiptReading> {
-  const key = process.env.GEMINI_API_KEY?.trim();
   const fallback = verifiedReading(imagePath);
-
-  if (!key) {
+  if (!process.env.GEMINI_API_KEY?.trim()) {
     if (fallback) return { extracted: fallback, parsedBy: "rule", confidence: 0.95 };
     return {
       extracted: {},
@@ -113,10 +115,40 @@ export async function readReceiptImage(imagePath: string): Promise<ReceiptReadin
       error: "No GEMINI_API_KEY and no stored reading.",
     };
   }
+  return readReceiptBytes(await readFile(imagePath), mimeFor(imagePath), fallback);
+}
+
+export function mimeFor(name: string): string {
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".webp")) return "image/webp";
+  return "image/jpeg";
+}
+
+/**
+ * A bill the employee uploaded. Same reading, no stored fallback to lean on -
+ * if the model cannot be reached, the document comes back empty and is put in
+ * front of the employee rather than guessed at.
+ */
+export async function readReceiptBytes(
+  bytes: Buffer,
+  mime: string,
+  fallback: Extraction | null = null,
+): Promise<ReceiptReading> {
+  const key = process.env.GEMINI_API_KEY?.trim();
+
+  if (!key) {
+    if (fallback) return { extracted: fallback, parsedBy: "rule", confidence: 0.95 };
+    return {
+      extracted: {},
+      parsedBy: "rule",
+      confidence: 0,
+      error: "No GEMINI_API_KEY is set, so this bill could not be read. Enter its details by hand.",
+    };
+  }
 
   try {
-    const bytes = await readFile(imagePath);
-    const mime = imagePath.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
     const model = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
 
     const body = JSON.stringify({
@@ -194,6 +226,7 @@ function normalise(json: Record<string, unknown>): Extraction {
   const items = Array.isArray(json.lineItems) ? (json.lineItems as Record<string, unknown>[]) : [];
 
   return {
+    documentType: json.documentType ? String(json.documentType) : undefined,
     merchant: json.merchant ? String(json.merchant) : undefined,
     city: json.city ? String(json.city) : undefined,
     billNo: json.billNo ? String(json.billNo) : undefined,

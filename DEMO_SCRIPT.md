@@ -70,6 +70,14 @@ Approve. Switch to **Meera Krishnan**, approve.
 
 Approve, show **Payments**, switch to **Kavitha Balan**, release. Show the claim as **Paid**.
 
+**3:30 — It is not a fixture** *(the part that matters)*
+
+Sign in as **Imran Qureshi**, raise a Hyderabad trip, and drop his own five files on it.
+
+> "Nothing here comes from the pack. Same pipeline, and it catches the same kinds
+> of things: the duplicate cab, a colleague's ride, and a hotel at seven thousand
+> a night against a six thousand cap - three thousand disallowed, shown on the form."
+
 **3:40 — The form and the admin view**
 
 Click **Download the form**, open the `.xlsx`:

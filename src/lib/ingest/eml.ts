@@ -16,7 +16,7 @@ export function parseEml(filename: string, content: string): RawEmail {
   const boundary = headers["content-type"]?.match(/boundary="?([^";]+)"?/i)?.[1];
 
   let body = bodyBlock;
-  const attachments: { filename: string; path?: string }[] = [];
+  const attachments: RawEmail["attachments"] = [];
 
   if (boundary) {
     const parts = bodyBlock.split(`--${boundary}`).filter((p) => p.trim() && p.trim() !== "--");
@@ -34,7 +34,24 @@ export function parseEml(filename: string, content: string): RawEmail {
           contentType.match(/name="?([^";]+)"?/i)?.[1] ??
           "attachment";
         const packPath = partBody.match(/\[ATTACHMENT:\s*see\s+([^\]\s]+)/i)?.[1];
-        attachments.push({ filename: name, path: packPath });
+        const encoding = partHeaders["content-transfer-encoding"] ?? "";
+        const mime = contentType.split(";")[0].trim() || undefined;
+
+        // A real message carries the bill itself, base64 encoded. The pack
+        // carries a pointer to a file beside it. Both end up as bytes.
+        let content: Buffer | undefined;
+        if (!packPath && /base64/i.test(encoding)) {
+          const cleaned = partBody.replace(/\s+/g, "");
+          if (cleaned.length > 0) {
+            try {
+              content = Buffer.from(cleaned, "base64");
+            } catch {
+              content = undefined;
+            }
+          }
+        }
+
+        attachments.push({ filename: name, path: packPath, content, mime });
       } else if (/text\/plain/i.test(contentType) || !contentType) {
         textParts.push(partBody.trim());
       }

@@ -99,6 +99,12 @@ model Document {
   rawText  String  @default("")
   imagePath String?
 
+  /// An uploaded file lives in the row: Vercel's filesystem is read-only, and a
+  /// bill is a few hundred KB. A real deployment would put these in object
+  /// storage and keep a key here instead.
+  fileData String?
+  mimeType String?
+
   classification String @default("UNKNOWN")
   parsedBy       String @default("rule") // rule | gemini | manual
   confidence     Float  @default(0)
@@ -110,6 +116,9 @@ model Document {
 
   excluded      Boolean @default(false)
   excludeReason String?
+
+  /// Set when nothing could read it: the employee is asked what it is.
+  needsReview Boolean @default(false)
 
   createdAt DateTime @default(now())
 

@@ -54,8 +54,11 @@ employee to answer — the app never invents a line.
 
 ## What I built, and what I left out
 
-Built: inbox reading (rules for the known senders, Gemini for photographed bills
-with verified readings as a fallback so a demo never depends on a network call);
+Built: evidence in two ways - the employee drags their own trip's emails, bill
+photographs and PDFs onto their travel request, and the pack's sample trip can
+load the inbox that ships with it - both through one pipeline (rules for the
+known senders, Gemini for photographed bills, with verified readings as a
+fallback so a demo never depends on a network call);
 a pure policy engine covering §1–§5; a settlement workspace that mirrors the paper
 form; approvals with approve / **send back with remarks** / reject; Finance
 verification, payment-run dates and payable-vs-recoverable; an admin view where the
@@ -63,8 +66,9 @@ approval thresholds are editable and feed the engine; the filled `.xlsx` in the
 company's own template with its formulas untouched; and an audit trail on
 everything.
 
-Left out on purpose: real SSO (a demo sign-in stands in), a live mailbox connection
-(the pack's folder stands in), a drag-and-drop workflow builder, payroll and
+Left out on purpose: real SSO (a demo sign-in stands in), a live mailbox
+connection (the employee exports the messages and drops them in, rather than the
+app holding an IMAP token), a drag-and-drop workflow builder, payroll and
 banking integration, notifications, and multi-currency. Each is a seam, not a
 rewrite — the sign-in is one file, the inbox is one function.
 

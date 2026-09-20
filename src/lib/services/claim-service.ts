@@ -6,7 +6,8 @@
  */
 
 import { db } from "../db";
-import { ingestPack, type Claimant } from "../ingest/pipeline";
+import { ingestPack, ingestUploads, type Claimant, type UploadedFile } from "../ingest/pipeline";
+import type { ParsedDocument } from "../ingest/types";
 import { runPolicyEngine, type EngineResult, type ProposedLine } from "../policy/engine";
 import { resolveApprovalChain, type Person } from "../policy/approvals";
 import { requiredApprovalRoles } from "../policy/config";
@@ -51,54 +52,143 @@ async function nextClaimNo(): Promise<string> {
   return `CLM-2026-${String(count + 1).padStart(6, "0")}`;
 }
 
-/* ------------------------------------------------------------ inbox import */
+/* ---------------------------------------------------------- evidence in */
 
 /**
- * Reads the inbox for a travel request and drafts the settlement from it.
- * Re-running it is safe: the previous draft's documents and suggested lines are
- * replaced, so nothing is ever claimed twice.
+ * The sample trip that ships with the app. It replaces whatever was on the
+ * request, so pressing it twice is safe - and it is offered only on the seeded
+ * trip, because its bills belong to that trip and nobody else's.
  */
 export async function importInboxForRequest(trqId: string, actorCode: string) {
+  const { request, claimant } = await loadRequest(trqId);
+  const parsed = await ingestPack(claimant);
+
+  await db.document.deleteMany({ where: { travelRequestId: request.id } });
+  for (const doc of parsed) await storeDocument(request.id, doc);
+
+  const claimId = await redraft(trqId, actorCode, "INBOX_IMPORTED");
+  return { claimId };
+}
+
+/**
+ * Evidence the employee dropped on their own trip: .eml files, photographs of
+ * bills, PDFs. It is added to what is already on the request, checked against
+ * it for duplicates, and the settlement is redrafted from the lot.
+ */
+export async function addUploadedEvidence(trqId: string, files: UploadedFile[], actorCode: string) {
+  const { request, claimant } = await loadRequest(trqId);
+  if (request.employeeCode !== actorCode) {
+    throw new Error("Only the person who made the trip can add evidence to it.");
+  }
+  if (files.length === 0) throw new Error("No files were attached.");
+
+  const existing = (await db.document.findMany({ where: { travelRequestId: request.id } })).map(toParsed);
+  const parsed = await ingestUploads(files, claimant, existing);
+  for (const doc of parsed) await storeDocument(request.id, doc);
+
+  const claimId = await redraft(trqId, actorCode, "EVIDENCE_ADDED");
+  return {
+    claimId,
+    added: parsed.length,
+    unreadable: parsed.filter((d) => d.needsReview).length,
+    duplicates: parsed.filter((d) => d.excluded).length,
+  };
+}
+
+async function loadRequest(trqId: string) {
   const request = await db.travelRequest.findUnique({
     where: { trqId },
     include: { employee: true, approvals: true },
   });
   if (!request) throw new Error(`No travel request ${trqId}`);
-
   const claimant: Claimant = { email: request.employee.email, name: request.employee.name };
-  const parsed = await ingestPack(claimant);
+  return { request, claimant };
+}
 
-  await db.document.deleteMany({ where: { travelRequestId: request.id } });
-  const documents = [];
-  for (const doc of parsed) {
-    documents.push(
-      await db.document.create({
-        data: {
-          travelRequestId: request.id,
-          source: doc.source,
-          kind: doc.imagePath ? "RECEIPT_IMAGE" : "EMAIL",
-          filename: doc.filename,
-          messageId: doc.messageId,
-          fromAddr: doc.fromAddr,
-          toAddr: doc.toAddr,
-          subject: doc.subject,
-          sentAt: doc.sentAt,
-          rawText: doc.rawText,
-          imagePath: doc.imagePath,
-          classification: doc.classification,
-          parsedBy: doc.parsedBy,
-          confidence: doc.confidence,
-          extractedJson: JSON.stringify(doc.extracted),
-          fingerprint: doc.fingerprint,
-          excluded: doc.excluded,
-          excludeReason: doc.excludeReason,
-        },
-      }),
-    );
-  }
+async function storeDocument(travelRequestId: string, doc: ParsedDocument) {
+  return db.document.create({
+    data: {
+      travelRequestId,
+      source: doc.source,
+      kind: doc.imagePath || doc.fileBase64 ? "RECEIPT_IMAGE" : "EMAIL",
+      filename: doc.filename,
+      messageId: doc.messageId,
+      fromAddr: doc.fromAddr,
+      toAddr: doc.toAddr,
+      subject: doc.subject,
+      sentAt: doc.sentAt,
+      rawText: doc.rawText,
+      imagePath: doc.imagePath,
+      fileData: doc.fileBase64,
+      mimeType: doc.mimeType,
+      classification: doc.classification,
+      parsedBy: doc.parsedBy,
+      confidence: doc.confidence,
+      extractedJson: JSON.stringify(doc.extracted),
+      fingerprint: doc.fingerprint,
+      excluded: doc.excluded,
+      excludeReason: doc.excludeReason,
+      needsReview: doc.needsReview ?? false,
+    },
+  });
+}
+
+type DocumentRow = {
+  filename: string;
+  source: string;
+  kind: string;
+  messageId: string | null;
+  fromAddr: string;
+  toAddr: string;
+  subject: string;
+  sentAt: Date | null;
+  rawText: string;
+  imagePath: string | null;
+  classification: string;
+  parsedBy: string;
+  confidence: number;
+  extractedJson: string;
+  fingerprint: string | null;
+  excluded: boolean;
+  excludeReason: string | null;
+  needsReview: boolean;
+};
+
+/** A stored document, back in the shape the engine reads. */
+function toParsed(row: DocumentRow): ParsedDocument {
+  return {
+    filename: row.filename,
+    source: row.source as ParsedDocument["source"],
+    kind: row.kind as ParsedDocument["kind"],
+    messageId: row.messageId ?? undefined,
+    fromAddr: row.fromAddr,
+    toAddr: row.toAddr,
+    subject: row.subject,
+    sentAt: row.sentAt,
+    rawText: row.rawText,
+    imagePath: row.imagePath ?? undefined,
+    classification: row.classification as ParsedDocument["classification"],
+    parsedBy: row.parsedBy as ParsedDocument["parsedBy"],
+    confidence: row.confidence,
+    extracted: JSON.parse(row.extractedJson),
+    fingerprint: row.fingerprint,
+    excluded: row.excluded,
+    excludeReason: row.excludeReason ?? undefined,
+    needsReview: row.needsReview,
+  };
+}
+
+/**
+ * Runs the policy engine over every document on the request and rewrites the
+ * draft from the result. The documents are the record; the lines are derived,
+ * which is why adding one more bill cannot leave a stale total behind.
+ */
+async function redraft(trqId: string, actorCode: string, action: string) {
+  const { request } = await loadRequest(trqId);
+  const rows = await db.document.findMany({ where: { travelRequestId: request.id } });
+  const parsed = rows.map(toParsed);
 
   const approvedRoles = request.approvals.filter((a) => a.decision === "APPROVED").map((a) => a.role);
-
   const estimates: { borneBy: string; estimate: number }[] = JSON.parse(request.estimateJson);
   const employeeBorne = round2(
     estimates.filter((e) => e.borneBy === "Employee").reduce((s, e) => s + e.estimate, 0),
@@ -122,30 +212,44 @@ export async function importInboxForRequest(trqId: string, actorCode: string) {
     submittedAt: new Date(),
   });
 
-  // One draft per request: re-importing refreshes it rather than stacking claims.
-  const existing = await db.claim.findFirst({
-    where: { travelRequestId: request.id, status: "DRAFT" },
+  // One draft per request: redrafting refreshes it rather than stacking claims.
+  const open = await db.claim.findFirst({
+    where: { travelRequestId: request.id, status: { in: ["DRAFT", "RETURNED"] } },
   });
-  const claim = existing
-    ? await db.claim.update({ where: { id: existing.id }, data: { updatedAt: new Date() } })
-    : await db.claim.create({
-        data: {
-          claimNo: await nextClaimNo(),
-          travelRequestId: request.id,
-          employeeCode: request.employeeCode,
-          status: "DRAFT",
-          advanceApplied: request.advanceDisbursed,
-          dueBy: addDays(request.toDate, 7),
-        },
-      });
+  const claim =
+    open ??
+    (await db.claim.create({
+      data: {
+        claimNo: await nextClaimNo(),
+        travelRequestId: request.id,
+        employeeCode: request.employeeCode,
+        status: "DRAFT",
+        advanceApplied: request.advanceDisbursed,
+        dueBy: addDays(request.toDate, 7),
+      },
+    }));
 
-  await db.claimLine.deleteMany({ where: { claimId: claim.id } });
-  await db.flag.deleteMany({ where: { claimId: claim.id } });
+  // A line the employee struck out stays struck out, and one they typed in stays
+  // theirs. Everything else is rebuilt from the evidence.
+  const kept = await db.claimLine.findMany({
+    where: { claimId: claim.id, OR: [{ status: "REMOVED" }, { reason: "Added by the employee." }] },
+  });
+  const removedDescriptions = new Set(kept.filter((l) => l.status === "REMOVED").map((l) => l.description));
 
-  const documentByFilename = new Map(documents.map((d) => [d.filename, d]));
+  await db.claimLine.deleteMany({
+    where: {
+      claimId: claim.id,
+      reason: { not: "Added by the employee." },
+      status: { not: "REMOVED" },
+    },
+  });
+  await db.flag.deleteMany({ where: { claimId: claim.id, resolved: false } });
+
+  const documentByFilename = new Map(rows.map((d) => [d.filename, d]));
   const lineIdByKey = new Map<string, string>();
 
   for (const line of engine.lines) {
+    if (removedDescriptions.has(line.description)) continue;
     const created = await db.claimLine.create({
       data: {
         claimId: claim.id,
@@ -190,15 +294,30 @@ export async function importInboxForRequest(trqId: string, actorCode: string) {
     });
   }
 
+  // A bill nothing could read is a blocker in its own right: policy 5.2 will not
+  // pay a line without proof, and this is proof nobody can price.
+  for (const row of rows.filter((d) => d.needsReview)) {
+    await db.flag.create({
+      data: {
+        claimId: claim.id,
+        code: "DOCUMENT_NEEDS_REVIEW",
+        severity: "BLOCK",
+        message: `"${row.filename}" could not be read. Say what it was and what it cost, or remove it.`,
+        policyRef: "5.2",
+        detail: row.subject,
+      },
+    });
+  }
+
   await recalculate(claim.id);
-  await audit("CLAIM", claim.id, actorCode, "INBOX_IMPORTED", {
-    documents: documents.length,
-    excluded: documents.filter((d) => d.excluded).length,
+  await audit("CLAIM", claim.id, actorCode, action, {
+    documents: rows.length,
+    excluded: rows.filter((d) => d.excluded).length,
     lines: engine.lines.length,
     flags: engine.flags.length,
   });
 
-  return { claimId: claim.id, engine };
+  return claim.id;
 }
 
 /* ----------------------------------------------------------- recalculation */
@@ -534,3 +653,97 @@ export function summariseFlags(flags: { severity: string; resolved: boolean }[])
 }
 
 export type { EngineResult, ProposedLine };
+
+/**
+ * The employee tells the app what an unreadable bill was. The document stays
+ * attached as the proof reference, the blocking flag is cleared, and the line
+ * carries a note saying a human priced it - because an auditor should be able
+ * to tell that apart from something the reader extracted.
+ */
+export async function confirmUnreadableDocument(
+  documentId: string,
+  input: { amount: number; head: string; description: string; lineDate?: string },
+  actorCode: string,
+) {
+  const doc = await db.document.findUniqueOrThrow({
+    where: { id: documentId },
+    include: { travelRequest: { include: { claims: true } } },
+  });
+  if (!doc.travelRequest) throw new Error("That document is not attached to a trip.");
+  if (doc.travelRequest.employeeCode !== actorCode) {
+    throw new Error("Only the person who made the trip can price its bills.");
+  }
+
+  const claim = doc.travelRequest.claims.find((c) => ["DRAFT", "RETURNED"].includes(c.status));
+  if (!claim) throw new Error("There is no open settlement on this trip.");
+
+  const section = SECTION_BY_HEAD[input.head] ?? "OTHER";
+  const last = await db.claimLine.findFirst({
+    where: { claimId: claim.id },
+    orderBy: { sortOrder: "desc" },
+  });
+
+  await db.claimLine.create({
+    data: {
+      claimId: claim.id,
+      section,
+      head: input.head,
+      description: input.description,
+      lineDate: input.lineDate ? new Date(input.lineDate) : doc.sentAt,
+      paidBy: "Employee",
+      gross: round2(input.amount),
+      disallowed: 0,
+      allowed: round2(input.amount),
+      reason: "Added by the employee.",
+      status: "CONFIRMED",
+      sortOrder: (last?.sortOrder ?? 0) + 1,
+      documentId: doc.id,
+    },
+  });
+
+  await db.document.update({
+    where: { id: doc.id },
+    data: {
+      needsReview: false,
+      parsedBy: "manual",
+      classification: CLASSIFICATION_BY_HEAD[input.head] ?? "UNKNOWN",
+      extractedJson: JSON.stringify({
+        ...JSON.parse(doc.extractedJson),
+        amount: round2(input.amount),
+        merchant: input.description,
+        notes: ["Priced by the employee; the reader could not."],
+      }),
+    },
+  });
+
+  await db.flag.updateMany({
+    where: { claimId: claim.id, code: "DOCUMENT_NEEDS_REVIEW", detail: doc.subject, resolved: false },
+    data: { resolved: true, resolutionNote: `Priced by hand: ${input.description}` },
+  });
+
+  await recalculate(claim.id);
+  await audit("CLAIM", claim.id, actorCode, "DOCUMENT_PRICED", {
+    document: doc.filename,
+    amount: input.amount,
+    head: input.head,
+  });
+
+  return claim.id;
+}
+
+const SECTION_BY_HEAD: Record<string, "LODGING" | "TRANSPORT" | "OTHER"> = {
+  Lodging: "LODGING",
+  "Local conveyance": "TRANSPORT",
+  "Air travel": "TRANSPORT",
+  Meals: "OTHER",
+  "Business entertainment": "OTHER",
+  Other: "OTHER",
+};
+
+const CLASSIFICATION_BY_HEAD: Record<string, string> = {
+  Lodging: "HOTEL_INVOICE",
+  "Local conveyance": "CAB_RECEIPT",
+  "Air travel": "FLIGHT_BOOKING",
+  Meals: "MEAL_BILL",
+  "Business entertainment": "ENTERTAINMENT_BILL",
+};
