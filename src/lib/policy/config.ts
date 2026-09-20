@@ -91,6 +91,19 @@ export const NON_REIMBURSABLE_PATTERNS: { pattern: RegExp; label: string }[] = [
   { pattern: /travel insurance/i, label: "Travel insurance" },
 ];
 
+/**
+ * Rows that are not charges at all: the tax lines and the running totals. A bill
+ * carries its tax once, in the tax field; a reader that also hands it back as a
+ * line item would have the claim pay it twice. Seen in the wild from the model,
+ * which sometimes transcribes "CGST 6%  1,152.00" as a line like any other.
+ */
+const TAX_OR_TOTAL_ROW =
+  /^\s*(cgst|sgst|igst|gst|vat|service\s*(tax|charge)?|sub\s*-?\s*total|subtotal|total|invoice\s*total|grand\s*total|net\s*(amount|total)|amount\s*(payable|due)|balance|round(ing)?\s*off|discount)\b/i;
+
+export function isTaxOrTotalRow(description: string): boolean {
+  return TAX_OR_TOTAL_ROW.test(description.trim());
+}
+
 /** Hotel folio lines that are food rather than lodging: moved to the meal head. */
 export const FOLIO_MEAL_PATTERNS = [/in[-\s]?room dining|room service|restaurant|breakfast|f\s*&\s*b/i];
 

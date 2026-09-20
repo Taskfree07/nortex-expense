@@ -20,6 +20,7 @@ import {
   SUBMISSION_WINDOW_DAYS,
   classifyCity,
   isFolioMeal,
+  isTaxOrTotalRow,
   matchNonReimbursable,
   requiredApprovalRoles,
   type CityClass,
@@ -186,7 +187,9 @@ function buildLodgingLines(
   flags: EngineFlag[],
 ) {
   const e = doc.extracted;
-  const folio = e.folioLines ?? [];
+  // Tax and total rows are not charges: the bill's tax is carried separately, and
+  // claiming it as a line as well would pay it twice.
+  const folio = (e.folioLines ?? []).filter((l) => !isTaxOrTotalRow(l.description));
   const subTotal = e.subTotal ?? round2(folio.reduce((s, l) => s + l.amount, 0));
   const taxTotal = e.taxTotal ?? 0;
   const cap = LODGING_CAP[cityClass];

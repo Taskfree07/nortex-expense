@@ -12,6 +12,7 @@ import { readFile } from "fs/promises";
 import path from "path";
 import { parseINR, round2 } from "../money";
 import { parseLooseDate } from "../dates";
+import { isTaxOrTotalRow } from "../policy/config";
 import type { Extraction } from "../ingest/types";
 
 export type ReceiptReading = {
@@ -271,11 +272,15 @@ function normalise(json: Record<string, unknown>): Extraction {
     invoiceNo: json.invoiceNo ? String(json.invoiceNo) : undefined,
     occurredAt: dateTime(json.date, json.time),
     covers: typeof json.covers === "number" ? json.covers : undefined,
-    folioLines: items.map((i) => ({
-      description: String(i.description ?? ""),
-      amount: round2(Number(i.amount ?? 0)),
-      date: i.date ? String(i.date) : undefined,
-    })),
+    // The model occasionally transcribes the tax and total rows as line items.
+    // They are dropped here so no consumer has to know that.
+    folioLines: items
+      .filter((i) => !isTaxOrTotalRow(String(i.description ?? "")))
+      .map((i) => ({
+        description: String(i.description ?? ""),
+        amount: round2(Number(i.amount ?? 0)),
+        date: i.date ? String(i.date) : undefined,
+      })),
     subTotal: num(json.subTotal),
     taxTotal: num(json.taxTotal),
     serviceCharge: num(json.serviceCharge),

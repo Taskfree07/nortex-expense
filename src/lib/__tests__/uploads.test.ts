@@ -169,3 +169,62 @@ describe("a trip that brings its own evidence", () => {
     expect(result.flags.map((f) => f.code)).toContain("OUTSIDE_TRIP_DATES");
   });
 });
+
+describe("a bill whose reader hands back its tax as a line item", () => {
+  /**
+   * Seen from the model on a real run: the hotel folio came back with
+   * "CGST 6% = 1152" and "SGST 6% = 1152" among the charges. The tax is already
+   * carried in taxTotal, so counting those rows as charges too put 2,580.48 of
+   * tax on the claim twice. A bill's own tax may only be paid once.
+   */
+  const folio = {
+    filename: "folio.png",
+    source: "UPLOAD" as const,
+    kind: "RECEIPT_IMAGE" as const,
+    fromAddr: "",
+    toAddr: "",
+    subject: "hotel folio",
+    sentAt: new Date("2026-10-08T11:00:00+05:30"),
+    rawText: "",
+    classification: "HOTEL_INVOICE" as const,
+    confidence: 0.9,
+    parsedBy: "gemini" as const,
+    fingerprint: null,
+    excluded: false,
+    extracted: {
+      merchant: "Novotel Hyderabad",
+      nights: 3,
+      tariffPerNight: 5000,
+      subTotal: 16500,
+      taxTotal: 1980,
+      amount: 18480,
+      paidBy: "Employee" as const,
+      checkIn: "2026-10-05T14:00:00+05:30",
+      checkOut: "2026-10-08T11:00:00+05:30",
+      folioLines: [
+        { description: "Room Charge", amount: 5000 },
+        { description: "Room Charge", amount: 5000 },
+        { description: "Room Charge", amount: 5000 },
+        { description: "Laundry", amount: 500 },
+        { description: "CGST 6%", amount: 990 },
+        { description: "SGST 6%", amount: 990 },
+        { description: "Sub Total", amount: 16500 },
+        { description: "Invoice Total", amount: 18480 },
+      ],
+    },
+  };
+
+  it("pays the tax once", () => {
+    const result = runPolicyEngine({ request: REQUEST, documents: [folio], submittedAt: new Date() });
+
+    // Room 15,000 + its 1,800 of tax; laundry 500 + 60 disallowed. Nothing else.
+    const lodging = result.lines.find((l) => l.section === "LODGING");
+    expect(lodging?.gross).toBe(16800);
+    expect(result.totals.grossEmployee).toBe(17360);
+    expect(result.totals.disallowed).toBe(560);
+    expect(result.totals.netClaim).toBe(16800);
+
+    // And no line was invented from a tax or total row.
+    expect(result.lines.some((l) => /gst|total/i.test(l.description))).toBe(false);
+  });
+});
