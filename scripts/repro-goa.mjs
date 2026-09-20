@@ -1,10 +1,17 @@
-/** Deepa's Goa trip, exactly as it went wrong: the same hotel bill by two
- *  routes, plus a photographed dinner bill the reader may not price. */
+/**
+ * Deepa's Goa trip, exactly as it went wrong: the same hotel bill arriving by
+ * two routes - the hotel's email and a photograph of the invoice - plus a
+ * photographed dinner bill. Checks the stay is claimed once and that whatever
+ * blocks the settlement carries the control that clears it.
+ */
 import { chromium } from "playwright";
 import path from "path";
 
 const base = process.env.BASE;
 const pack = path.join(process.cwd(), "data", "pack");
+const shots =
+  "D:/Temp/claude/D--New-Assignment-expense-reimbursement-takehome/d0fb6bba-0c0c-4b8f-a87f-125892980657/scratchpad/shots";
+
 const browser = await chromium.launch();
 const as = async (code) => {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1200 } });
@@ -30,7 +37,7 @@ const trq = page.url().split("/").pop();
 console.log("raised", trq);
 await ctx.close();
 
-// Manager approves (20,000 estimate -> manager only)
+// Her manager approves it
 ({ ctx, page } = await as("NX-2210"));
 await page.goto(`${base}/requests/${trq}`, { waitUntil: "networkidle" });
 await page.getByRole("textbox").first().fill("Approved.");
@@ -38,7 +45,7 @@ await page.getByRole("button", { name: /^Approve$/ }).click();
 await page.waitForTimeout(4000);
 await ctx.close();
 
-// Deepa uploads the same hotel bill twice, plus the dinner photo
+// She uploads the hotel bill twice over, plus the dinner photograph
 ({ ctx, page } = await as("NX-5182"));
 await page.goto(`${base}/requests/${trq}`, { waitUntil: "networkidle" });
 await page.setInputFiles(`#files-${trq}`, [
@@ -50,34 +57,24 @@ await page.waitForTimeout(600);
 await page.getByRole("button", { name: /Read 3 files/i }).click();
 await page.waitForURL(/\/claims\//, { timeout: 180000 });
 await page.waitForLoadState("networkidle");
-const claimUrl = page.url();
-console.log("claim:", claimUrl);
+console.log("claim:", page.url());
 
-const body = () => page.locator("body").innerText();
-let text = await body();
-const after = (label) => text.split("\n")[text.split("\n").findIndex((l) => l.includes(label)) + 1];
-console.log("  claim total     :", after("Claim total, paid by you"));
-console.log("  lodging lines   :", (text.match(/night\(s\) at/g) || []).length);
-console.log("  duplicate noted :", /Duplicate of/.test(text));
-console.log("  blocking text   :", text.split("\n").find((l) => /need(s)? you/.test(l)));
-console.log("  price form here :", await page.getByRole("button", { name: /Add it to the claim/i }).count());
-await page.screenshot({ path: "D:/Temp/claude/D--New-Assignment-expense-reimbursement-takehome/d0fb6bba-0c0c-4b8f-a87f-125892980657/scratchpad/shots/goa-blocked.png", fullPage: true });
+const text = await page.locator("body").innerText();
+const lines = text.split("\n");
+const after = (label) => lines[lines.findIndex((l) => l.includes(label)) + 1];
 
-// Clear the blocker the way the interface now offers
-if (await page.getByRole("button", { name: /Add it to the claim/i }).count()) {
-  await page.locator('input[name="description"]').last().fill("Dinner with the channel partners");
-  await page.locator('select[name="head"]').last().selectOption("Business entertainment");
-  await page.locator('input[name="amount"]').last().fill("2255");
-  await page.locator('input[name="lineDate"]').last().fill("2026-09-23");
-  await page.getByRole("button", { name: /Add it to the claim/i }).click();
-  await page.waitForTimeout(6000);
-  await page.reload({ waitUntil: "networkidle" });
-  text = await body();
-  console.log("\nafter pricing it:");
-  console.log("  blocking text   :", text.split("\n").find((l) => /need(s)? you|Nothing is waiting/.test(l)));
-  console.log("  can file        :", await page.getByRole("button", { name: /File the settlement/i }).isEnabled());
-  console.log("  claim total     :", text.split("\n")[text.split("\n").findIndex((l) => l.includes("Claim total, paid by you")) + 1]);
-  await page.screenshot({ path: "D:/Temp/claude/D--New-Assignment-expense-reimbursement-takehome/d0fb6bba-0c0c-4b8f-a87f-125892980657/scratchpad/shots/goa-cleared.png", fullPage: true });
-}
+console.log("  claim total      :", after("Claim total, paid by you"));
+console.log("  lodging rows     :", await page.locator("tr", { hasText: "night(s) at" }).count());
+console.log("  duplicate caught :", /Duplicate of/i.test(text));
+console.log("  blocking summary :", lines.find((l) => /need(s)? you|Nothing is waiting/.test(l)));
+console.log("  fix on the check :", (await page.getByRole("button", { name: /Add it to the claim/i }).count()) > 0);
+
+await page.screenshot({ path: `${shots}/goa-checks.png`, fullPage: true });
+
+const panel = await page.locator("aside").last().innerText();
+const start = panel.indexOf("Policy checks");
+console.log("\n--- policy checks panel ---");
+console.log(panel.slice(start, start + 900));
+
 await ctx.close();
 await browser.close();

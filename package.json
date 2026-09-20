@@ -6,14 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "setup": "prisma generate && prisma db push --skip-generate && tsx prisma/seed.ts",
+    "setup": "node scripts/ensure-env.mjs && prisma generate && prisma db push --skip-generate && tsx prisma/seed.ts",
     "seed": "tsx prisma/seed.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:studio": "prisma studio",
     "build:vercel": "node scripts/postgres-schema.mjs && prisma generate --schema=prisma/schema.postgres.prisma && prisma db push --schema=prisma/schema.postgres.prisma --skip-generate && tsx prisma/seed.ts && next build",
     "demo": "node scripts/flow.mjs",
-    "seed:prod": "node scripts/postgres-schema.mjs && prisma generate --schema=prisma/schema.postgres.prisma && tsx prisma/seed.ts && prisma generate"
+    "seed:prod": "node scripts/postgres-schema.mjs && prisma generate --schema=prisma/schema.postgres.prisma && tsx prisma/seed.ts && prisma generate",
+    "predev": "node scripts/ensure-env.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
