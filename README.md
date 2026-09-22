@@ -60,7 +60,9 @@ as the proof reference.
    then **Ravi Menon** (Finance verification), then **Kavitha Balan** (payment).
 6. Download the filled `.xlsx` at any point — it is the company's own template.
 
-`npm run demo` drives all of that in a real browser and screenshots each step.
+`npm run demo` drives all of that in a real browser and saves a screenshot of each
+step to `./screenshots`. It needs the app running (`npm run dev`) and a browser for
+Playwright, installed once with `npx playwright install chromium`.
 
 ## Tests
 
@@ -75,6 +77,9 @@ the ₹20,000 advance). The numbers were worked out by hand from the pack before
 engine existed.
 
 ## How it is put together
+
+`CODE_STRUCTURE.md` walks every folder and file, and follows one click through the
+code. The short version:
 
 ```
 src/lib/ingest/     reads .eml files and bill images into structured documents

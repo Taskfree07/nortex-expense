@@ -48,3 +48,6 @@ prisma/schema.postgres.prisma
 
 .vercel
 .env*
+
+# npm run demo output
+screenshots/

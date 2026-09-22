@@ -1,13 +1,19 @@
 /**
- * Drives the whole story in a real browser: Chaitanya reads his inbox, files the
- * settlement, then it moves through Suresh, Meera and Finance to payment.
- * Screenshots each step. Used to check the app really works end to end.
+ * `npm run demo` - drives the whole story in a real browser: Chaitanya loads the
+ * sample inbox and files the settlement, then it moves through Suresh, Meera and
+ * Finance to payment. Screenshots each step into ./screenshots.
+ *
+ * Needs the app running first (`npm run dev`), and a browser for Playwright
+ * (`npx playwright install chromium`). BASE points it elsewhere, such as the
+ * live deployment.
  */
 import { chromium } from "playwright";
+import { mkdirSync } from "fs";
+import path from "path";
 
-const base = process.env.BASE || "http://localhost:3111";
-const out =
-  "D:/Temp/claude/D--New-Assignment-expense-reimbursement-takehome/d0fb6bba-0c0c-4b8f-a87f-125892980657/scratchpad/shots";
+const base = process.env.BASE || "http://localhost:3000";
+const out = path.join(process.cwd(), "screenshots");
+mkdirSync(out, { recursive: true });
 const browser = await chromium.launch();
 
 async function as(empCode) {
@@ -21,7 +27,7 @@ const shot = (page, name, full = false) => page.screenshot({ path: `${out}/${nam
 let { ctx, page } = await as("NX-4471");
 await page.goto(`${base}/requests/TRQ-2026-0001`, { waitUntil: "networkidle" });
 await shot(page, "flow-01-request", true);
-await page.getByRole("button", { name: /Read (my inbox|the inbox again)/i }).click();
+await page.getByRole("button", { name: /Load the sample inbox/i }).click();
 await page.waitForURL(/\/claims\//, { timeout: 60000 });
 await page.waitForLoadState("networkidle");
 const claimUrl = page.url();
